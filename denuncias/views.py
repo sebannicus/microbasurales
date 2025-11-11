@@ -101,6 +101,19 @@ class MisDenunciasListView(generics.ListAPIView):
         )
 
 
+class MiDenunciaRetrieveUpdateView(generics.RetrieveUpdateAPIView):
+    """Permite obtener y actualizar una denuncia propia."""
+
+    serializer_class = DenunciaSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Denuncia.objects.filter(usuario=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(usuario=self.request.user)
+
+
 class DenunciaAdminListView(generics.ListAPIView):
     """Lista de denuncias con filtros para funcionarios municipales."""
 
