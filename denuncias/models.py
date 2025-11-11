@@ -19,6 +19,13 @@ class Denuncia(models.Model):
 
     descripcion = models.TextField()
 
+    # Dirección legible seleccionada por la persona denunciante
+    direccion_textual = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Dirección descriptiva asociada a la ubicación de la denuncia.",
+    )
+
     # Ubicación sin GIS, usando latitud y longitud
     latitud = models.FloatField()
     longitud = models.FloatField()

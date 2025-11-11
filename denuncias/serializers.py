@@ -13,6 +13,7 @@ class DenunciaSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "descripcion",
+            "direccion_textual",
             "estado",
             "estado_display",
             "fecha_creacion",

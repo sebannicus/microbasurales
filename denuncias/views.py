@@ -20,12 +20,20 @@ class DenunciaListCreateView(APIView):
 
     def post(self, request, *args, **kwargs):
         descripcion = request.data.get("descripcion", "").strip()
+        direccion_textual = request.data.get("direccion_textual", "").strip()
         latitud = request.data.get("latitud")
         longitud = request.data.get("longitud")
+        imagen = request.FILES.get("imagen")
 
         if not descripcion:
             return Response(
                 {"descripcion": ["Este campo es requerido."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not direccion_textual:
+            return Response(
+                {"direccion_textual": ["Este campo es requerido."]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -38,10 +46,17 @@ class DenunciaListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if imagen is None:
+            return Response(
+                {"imagen": ["Debes adjuntar una fotografía del microbasural."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         denuncia = Denuncia.objects.create(
             usuario=request.user,
             descripcion=descripcion,
-            imagen=request.FILES.get("imagen"),
+            direccion_textual=direccion_textual,
+            imagen=imagen,
             latitud=latitud_valor,
             longitud=longitud_valor,
         )
