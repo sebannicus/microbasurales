@@ -2,12 +2,13 @@ from django.contrib.auth.views import LogoutView
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from .views import RegistroUsuarioView, home_view, login_view, me_view
+from .views import RegistroUsuarioView, home_view, login_view, me_view, register_view
 
 
 urlpatterns = [
     # LOGIN HTML (plantilla roja)
     path('login-django/', login_view, name='login_django'),
+    path('registrarse/', register_view, name='register'),
 
     # REGISTRO API
     path('registro/', RegistroUsuarioView.as_view(), name='registro'),
