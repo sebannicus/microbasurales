@@ -7,7 +7,7 @@ from rest_framework import generics
 from rest_framework.permissions import AllowAny
 
 from .serializers import UsuarioRegistroSerializer
-=======
+
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .serializers import UsuarioRegistroSerializer
@@ -45,7 +45,7 @@ def login_view(request):
 
     return render(request, "login.html", {"page": "login"})
 
-=======
+
     return render(request, "login.html", {"page": "login"})
 
 
@@ -54,7 +54,7 @@ def login_view(request):
 def home_ciudadano_view(request):
     return render(request, "home_ciudadano.html")
 
-=======
+
 def home_view(request):
     return render(request, "home.html")
 

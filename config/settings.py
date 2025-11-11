@@ -177,7 +177,6 @@ SIMPLE_JWT = {
 LOGIN_URL = 'login_django'
 LOGIN_REDIRECT_URL = 'home_ciudadano'
 LOGOUT_REDIRECT_URL = 'login_django'
-=======
 # ========================================
 # CORS (Cross-Origin Resource Sharing)
 # ========================================
