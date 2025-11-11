@@ -169,261 +169,265 @@
     crossorigin=""
 ></script>
 <script>
-    const formDenuncia = document.getElementById('denunciaForm');
-    const alertPlaceholder = document.getElementById('alertPlaceholder');
-    const tablaDenunciasBody = document.getElementById('tablaDenunciasBody');
-    const modalDenuncia = document.getElementById('modalDenuncia');
-    const modal = modalDenuncia ? new bootstrap.Modal(modalDenuncia) : null;
-    const totalDenunciasBadge = document.getElementById('totalDenuncias');
-    const sinDenunciasMensaje = document.getElementById('sinDenuncias');
-    const latitudInput = document.getElementById('latitud');
-    const longitudInput = document.getElementById('longitud');
-    const ESTADOS_LABEL = {
-        pendiente: 'Pendiente',
-        en_proceso: 'En proceso',
-        resuelta: 'Resuelta',
-    };
+    document.addEventListener('DOMContentLoaded', function () {
+        const formDenuncia = document.getElementById('denunciaForm');
+        const alertPlaceholder = document.getElementById('alertPlaceholder');
+        const tablaDenunciasBody = document.getElementById('tablaDenunciasBody');
+        const modalDenuncia = document.getElementById('modalDenuncia');
+        const modal = modalDenuncia && window.bootstrap
+            ? new bootstrap.Modal(modalDenuncia)
+            : null;
+        const totalDenunciasBadge = document.getElementById('totalDenuncias');
+        const sinDenunciasMensaje = document.getElementById('sinDenuncias');
+        const latitudInput = document.getElementById('latitud');
+        const longitudInput = document.getElementById('longitud');
+        const ESTADOS_LABEL = {
+            pendiente: 'Pendiente',
+            en_proceso: 'En proceso',
+            resuelta: 'Resuelta',
+        };
 
-    const map = L.map('map').setView([-33.4489, -70.6693], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
-    }).addTo(map);
+        const map = L.map('map').setView([-33.4489, -70.6693], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+        }).addTo(map);
 
-    if (modalDenuncia) {
-        modalDenuncia.addEventListener('shown.bs.modal', () => {
-            setTimeout(() => {
-                map.invalidateSize();
-            }, 200);
-        });
-    }
-
-    let marker = null;
-
-    function actualizarMarcador(lat, lng) {
-        if (!lat || !lng) {
-            return;
+        if (modalDenuncia) {
+            modalDenuncia.addEventListener('shown.bs.modal', () => {
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 200);
+            });
         }
-        const latitud = parseFloat(lat);
-        const longitud = parseFloat(lng);
-        if (Number.isNaN(latitud) || Number.isNaN(longitud)) {
-            return;
-        }
-        if (marker) {
-            marker.setLatLng([latitud, longitud]);
-        } else {
-            marker = L.marker([latitud, longitud]).addTo(map);
-        }
-        map.setView([latitud, longitud], 15);
-        if (latitudInput && longitudInput) {
-            latitudInput.value = latitud.toFixed(6);
-            longitudInput.value = longitud.toFixed(6);
-        }
-    }
 
-    map.on('click', function (event) {
-        actualizarMarcador(event.latlng.lat, event.latlng.lng);
-    });
+        let marker = null;
 
-    const btnUbicacion = document.getElementById('btnUbicacion');
-    if (btnUbicacion) {
-        btnUbicacion.addEventListener('click', function () {
-            if (!navigator.geolocation) {
-                mostrarAlerta('Tu navegador no soporta geolocalización.', 'warning');
+        function actualizarMarcador(lat, lng) {
+            if (!lat || !lng) {
                 return;
             }
-            navigator.geolocation.getCurrentPosition(
-                function (posicion) {
-                    const { latitude, longitude } = posicion.coords;
-                    actualizarMarcador(latitude, longitude);
-                },
-                function () {
-                    mostrarAlerta('No pudimos obtener tu ubicación. Intenta seleccionarla manualmente.', 'warning');
-                }
-            );
-        });
-    }
-
-    function mostrarAlerta(mensaje, tipo = 'success') {
-        alertPlaceholder.innerHTML = `
-            <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
-                ${mensaje}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        `;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function formatearEstado(denuncia) {
-        if (denuncia.estado_display) {
-            return denuncia.estado_display;
-        }
-        return ESTADOS_LABEL[denuncia.estado] || denuncia.estado;
-    }
-
-    function agregarDenunciaATabla(denuncia, { prepend = true } = {}) {
-        if (!tablaDenunciasBody) {
-            return;
-        }
-        const fila = document.createElement('tr');
-        fila.dataset.denunciaId = denuncia.id;
-        const latitud = Number.parseFloat(denuncia.latitud);
-        const longitud = Number.parseFloat(denuncia.longitud);
-        const latitudTexto = Number.isFinite(latitud) ? latitud.toFixed(6) : '--';
-        const longitudTexto = Number.isFinite(longitud) ? longitud.toFixed(6) : '--';
-        fila.innerHTML = `
-            <td>${new Date(denuncia.fecha_creacion).toLocaleString('es-CL')}</td>
-            <td>${denuncia.descripcion}</td>
-            <td><small>Lat: ${latitudTexto}<br>Lng: ${longitudTexto}</small></td>
-            <td><span class="badge text-bg-light">${formatearEstado(denuncia)}</span></td>
-            <td>${denuncia.imagen ? `<img src="${denuncia.imagen}" alt="Foto denuncia">` : '<span class="text-muted">Sin imagen</span>'}</td>
-        `;
-        if (prepend) {
-            tablaDenunciasBody.prepend(fila);
-        } else {
-            tablaDenunciasBody.appendChild(fila);
-        }
-        if (sinDenunciasMensaje) {
-            sinDenunciasMensaje.classList.add('d-none');
-        }
-        if (totalDenunciasBadge) {
-            const total = tablaDenunciasBody.querySelectorAll('tr').length;
-            totalDenunciasBadge.textContent = `${total} registro${total !== 1 ? 's' : ''}`;
-        }
-    }
-
-    async function cargarDenuncias() {
-        if (!tablaDenunciasBody) {
-            return;
-        }
-
-        try {
-            const respuesta = await fetch('/api/denuncias/mis/', {
-                credentials: 'include',
-            });
-
-            if (!respuesta.ok) {
-                throw new Error('No se pudieron obtener tus denuncias.');
+            const latitud = parseFloat(lat);
+            const longitud = parseFloat(lng);
+            if (Number.isNaN(latitud) || Number.isNaN(longitud)) {
+                return;
             }
+            if (marker) {
+                marker.setLatLng([latitud, longitud]);
+            } else {
+                marker = L.marker([latitud, longitud]).addTo(map);
+            }
+            map.setView([latitud, longitud], 15);
+            if (latitudInput && longitudInput) {
+                latitudInput.value = latitud.toFixed(6);
+                longitudInput.value = longitud.toFixed(6);
+            }
+        }
 
-            const data = await respuesta.json();
+        map.on('click', function (event) {
+            actualizarMarcador(event.latlng.lat, event.latlng.lng);
+        });
 
-            tablaDenunciasBody.innerHTML = '';
-
-            if (!data || data.length === 0) {
-                if (sinDenunciasMensaje) {
-                    sinDenunciasMensaje.classList.remove('d-none');
+        const btnUbicacion = document.getElementById('btnUbicacion');
+        if (btnUbicacion) {
+            btnUbicacion.addEventListener('click', function () {
+                if (!navigator.geolocation) {
+                    mostrarAlerta('Tu navegador no soporta geolocalización.', 'warning');
+                    return;
                 }
-                if (totalDenunciasBadge) {
-                    totalDenunciasBadge.textContent = '0 registros';
-                }
+                navigator.geolocation.getCurrentPosition(
+                    function (posicion) {
+                        const { latitude, longitude } = posicion.coords;
+                        actualizarMarcador(latitude, longitude);
+                    },
+                    function () {
+                        mostrarAlerta('No pudimos obtener tu ubicación. Intenta seleccionarla manualmente.', 'warning');
+                    }
+                );
+            });
+        }
+
+        function mostrarAlerta(mensaje, tipo = 'success') {
+            alertPlaceholder.innerHTML = `
+                <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
+                    ${mensaje}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function formatearEstado(denuncia) {
+            if (denuncia.estado_display) {
+                return denuncia.estado_display;
+            }
+            return ESTADOS_LABEL[denuncia.estado] || denuncia.estado;
+        }
+
+        function agregarDenunciaATabla(denuncia, { prepend = true } = {}) {
+            if (!tablaDenunciasBody) {
+                return;
+            }
+            const fila = document.createElement('tr');
+            fila.dataset.denunciaId = denuncia.id;
+            const latitud = Number.parseFloat(denuncia.latitud);
+            const longitud = Number.parseFloat(denuncia.longitud);
+            const latitudTexto = Number.isFinite(latitud) ? latitud.toFixed(6) : '--';
+            const longitudTexto = Number.isFinite(longitud) ? longitud.toFixed(6) : '--';
+            fila.innerHTML = `
+                <td>${new Date(denuncia.fecha_creacion).toLocaleString('es-CL')}</td>
+                <td>${denuncia.descripcion}</td>
+                <td><small>Lat: ${latitudTexto}<br>Lng: ${longitudTexto}</small></td>
+                <td><span class="badge text-bg-light">${formatearEstado(denuncia)}</span></td>
+                <td>${denuncia.imagen ? `<img src="${denuncia.imagen}" alt="Foto denuncia">` : '<span class="text-muted">Sin imagen</span>'}</td>
+            `;
+            if (prepend) {
+                tablaDenunciasBody.prepend(fila);
+            } else {
+                tablaDenunciasBody.appendChild(fila);
+            }
+            if (sinDenunciasMensaje) {
+                sinDenunciasMensaje.classList.add('d-none');
+            }
+            if (totalDenunciasBadge) {
+                const total = tablaDenunciasBody.querySelectorAll('tr').length;
+                totalDenunciasBadge.textContent = `${total} registro${total !== 1 ? 's' : ''}`;
+            }
+        }
+
+        async function cargarDenuncias() {
+            if (!tablaDenunciasBody) {
                 return;
             }
 
-            data.forEach((denuncia) => agregarDenunciaATabla(denuncia, { prepend: false }));
-        } catch (error) {
-            console.error(error);
-            mostrarAlerta('No se pudieron cargar tus denuncias. Intenta nuevamente.', 'danger');
+            try {
+                const respuesta = await fetch('/api/denuncias/mis/', {
+                    credentials: 'include',
+                });
+
+                if (!respuesta.ok) {
+                    throw new Error('No se pudieron obtener tus denuncias.');
+                }
+
+                const data = await respuesta.json();
+
+                tablaDenunciasBody.innerHTML = '';
+
+                if (!data || data.length === 0) {
+                    if (sinDenunciasMensaje) {
+                        sinDenunciasMensaje.classList.remove('d-none');
+                    }
+                    if (totalDenunciasBadge) {
+                        totalDenunciasBadge.textContent = '0 registros';
+                    }
+                    return;
+                }
+
+                data.forEach((denuncia) => agregarDenunciaATabla(denuncia, { prepend: false }));
+            } catch (error) {
+                console.error(error);
+                mostrarAlerta('No se pudieron cargar tus denuncias. Intenta nuevamente.', 'danger');
+            }
         }
-    }
 
-    async function enviarDenuncia() {
-        if (!formDenuncia) {
-            return;
-        }
+        async function enviarDenuncia() {
+            if (!formDenuncia) {
+                return;
+            }
 
-        const latitud = latitudInput ? latitudInput.value : '';
-        const longitud = longitudInput ? longitudInput.value : '';
+            const latitud = latitudInput ? latitudInput.value : '';
+            const longitud = longitudInput ? longitudInput.value : '';
 
-        if (!latitud || !longitud) {
-            mostrarAlerta('Debes seleccionar una ubicación en el mapa.', 'danger');
-            return;
-        }
+            if (!latitud || !longitud) {
+                mostrarAlerta('Debes seleccionar una ubicación en el mapa.', 'danger');
+                return;
+            }
 
-        const formData = new FormData(formDenuncia);
-        const csrfToken = formDenuncia.querySelector('input[name="csrfmiddlewaretoken"]').value;
+            const formData = new FormData(formDenuncia);
+            const csrfToken = formDenuncia.querySelector('input[name="csrfmiddlewaretoken"]').value;
 
-        try {
-            const respuesta = await fetch('/api/denuncias/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                },
-                body: formData,
-                credentials: 'include',
-            });
+            try {
+                const respuesta = await fetch('/api/denuncias/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: formData,
+                    credentials: 'include',
+                });
 
-            if (!respuesta.ok) {
-                const errorData = await respuesta.json().catch(() => ({}));
-                let mensajeError = errorData?.detail;
-                if (!mensajeError && errorData && typeof errorData === 'object') {
-                    const firstErrorKey = Object.keys(errorData)[0];
-                    if (firstErrorKey) {
-                        const rawError = errorData[firstErrorKey];
-                        if (Array.isArray(rawError) && rawError.length > 0) {
-                            mensajeError = rawError[0];
-                        } else if (typeof rawError === 'string') {
-                            mensajeError = rawError;
+                if (!respuesta.ok) {
+                    const errorData = await respuesta.json().catch(() => ({}));
+                    let mensajeError = errorData?.detail;
+                    if (!mensajeError && errorData && typeof errorData === 'object') {
+                        const firstErrorKey = Object.keys(errorData)[0];
+                        if (firstErrorKey) {
+                            const rawError = errorData[firstErrorKey];
+                            if (Array.isArray(rawError) && rawError.length > 0) {
+                                mensajeError = rawError[0];
+                            } else if (typeof rawError === 'string') {
+                                mensajeError = rawError;
+                            }
                         }
                     }
+                    if (!mensajeError) {
+                        mensajeError = 'No se pudo registrar la denuncia. Revisa los datos ingresados.';
+                    }
+                    mostrarAlerta(mensajeError, 'danger');
+                    return;
                 }
-                if (!mensajeError) {
-                    mensajeError = 'No se pudo registrar la denuncia. Revisa los datos ingresados.';
-                }
-                mostrarAlerta(mensajeError, 'danger');
-                return;
-            }
 
-            const data = await respuesta.json();
-            agregarDenunciaATabla(data);
-            formDenuncia.reset();
-            if (marker) {
-                map.removeLayer(marker);
-                marker = null;
+                const data = await respuesta.json();
+                agregarDenunciaATabla(data);
+                formDenuncia.reset();
+                if (marker) {
+                    map.removeLayer(marker);
+                    marker = null;
+                }
+                if (latitudInput) {
+                    latitudInput.value = '';
+                }
+                if (longitudInput) {
+                    longitudInput.value = '';
+                }
+                if (modal) {
+                    modal.hide();
+                }
+                mostrarAlerta('¡Denuncia registrada correctamente! Puedes verla en la tabla inferior.');
+            } catch (error) {
+                console.error(error);
+                mostrarAlerta('Ocurrió un error inesperado. Inténtalo nuevamente.', 'danger');
             }
-            if (latitudInput) {
-                latitudInput.value = '';
-            }
-            if (longitudInput) {
-                longitudInput.value = '';
-            }
-            if (modal) {
-                modal.hide();
-            }
-            mostrarAlerta('¡Denuncia registrada correctamente! Puedes verla en la tabla inferior.');
-        } catch (error) {
-            console.error(error);
-            mostrarAlerta('Ocurrió un error inesperado. Inténtalo nuevamente.', 'danger');
         }
-    }
 
-    if (formDenuncia) {
-        formDenuncia.addEventListener('submit', function (event) {
-            event.preventDefault();
+        if (formDenuncia) {
+            formDenuncia.addEventListener('submit', function (event) {
+                event.preventDefault();
 
-            if (!navigator.geolocation) {
-                if (!latitudInput?.value || !longitudInput?.value) {
-                    mostrarAlerta('Tu navegador no soporta geolocalización. Selecciona la ubicación manualmente.', 'danger');
+                if (!navigator.geolocation) {
+                    if (!latitudInput?.value || !longitudInput?.value) {
+                        mostrarAlerta('Tu navegador no soporta geolocalización. Selecciona la ubicación manualmente.', 'danger');
+                        return;
+                    }
+                    enviarDenuncia();
                     return;
                 }
-                enviarDenuncia();
-                return;
-            }
 
-            navigator.geolocation.getCurrentPosition(pos => {
-                document.querySelector('#latitud').value = pos.coords.latitude;
-                document.querySelector('#longitud').value = pos.coords.longitude;
-                actualizarMarcador(pos.coords.latitude, pos.coords.longitude);
-                enviarDenuncia();
-            }, () => {
-                if (!latitudInput?.value || !longitudInput?.value) {
-                    mostrarAlerta('No pudimos obtener tu ubicación automáticamente. Selecciónala manualmente en el mapa.', 'warning');
-                    return;
-                }
-                enviarDenuncia();
+                navigator.geolocation.getCurrentPosition(pos => {
+                    document.querySelector('#latitud').value = pos.coords.latitude;
+                    document.querySelector('#longitud').value = pos.coords.longitude;
+                    actualizarMarcador(pos.coords.latitude, pos.coords.longitude);
+                    enviarDenuncia();
+                }, () => {
+                    if (!latitudInput?.value || !longitudInput?.value) {
+                        mostrarAlerta('No pudimos obtener tu ubicación automáticamente. Selecciónala manualmente en el mapa.', 'warning');
+                        return;
+                    }
+                    enviarDenuncia();
+                });
             });
-        });
-    }
+        }
 
-    cargarDenuncias();
+        cargarDenuncias();
+    });
 </script>
 {% endblock %}
