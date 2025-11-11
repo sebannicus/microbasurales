@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block contenido %}
+
+<style>
+    .home-container {
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .home-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+        padding: 25px 30px;
+    }
+
+    .home-title {
+        color: #b71c1c;
+        font-weight: 700;
+        margin-bottom: 12px;
+    }
+
+    .home-sub {
+        font-size: 16px;
+        color: #444;
+    }
+
+    .home-list li {
+        margin-bottom: 6px;
+        font-size: 15px;
+    }
+</style>
+
+<div class="home-container mt-4">
+
+    <div class="home-card">
+
+        <h2 class="home-title">Bienvenido, {{ user.username }}</h2>
+
+        <p class="home-sub">
+            Has iniciado sesión correctamente en el Sistema de Monitoreo de Microbasurales.
+        </p>
+
+        <p class="mt-3">Desde este panel podrás:</p>
+
+        <ul class="home-list">
+            <li>Registrar nuevas denuncias con fotos y ubicación GPS.</li>
+            <li>Visualizar y dar seguimiento al estado de tus denuncias.</li>
+            <li>Acceder a las herramientas según tu rol (usuario o fiscalizador).</li>
+            <li>Utilizar el menú lateral para navegar entre los módulos del sistema.</li>
+        </ul>
+
+    </div>
+
+</div>
+
+{% endblock %}

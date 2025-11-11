@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Monitoreo Municipal</title>
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.8.1/font/bootstrap-icons.min.css">
+
+    <!-- Iconos -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="icon" href="{% static 'images/favicon.ico' %}" type="image/x-icon">
+
+    <!-- Mermaid -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: "dark" });
+    </script>
+
+    <!-- Estilos globales -->
+    <style>
+        body {
+            background-color: #f4f4f4;
+            color: #232323;
+            font-family: Arial, sans-serif;
+            padding-top: 65px; /* evita que el navbar tape el contenido */
+        }
+
+        /* NAVBAR ROJO */
+        .navbar {
+            background-color: #c62828 !important;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+        }
+
+        .navbar-brand {
+            color: #ffffff !important;
+            font-weight: bold;
+        }
+
+        .navbar-toggler-icon {
+            filter: brightness(0) invert(1);
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            height: 100vh;
+            position: fixed;
+            top: 65px;
+            left: 0;
+            width: 60px;
+            background-color: #c62828;
+            padding-top: 20px;
+            border-right: 2px solid #8e0000;
+            text-align: center;
+            z-index: 1040;
+        }
+
+        .sidebar a {
+            color: #ffffff;
+            padding: 12px 0;
+            text-decoration: none;
+            display: block;
+            font-size: 22px;
+            transition: 0.2s ease-in-out;
+        }
+
+        .sidebar a:hover,
+        .sidebar a.active {
+            background-color: #8e0000;
+            border-left: 4px solid #ef5350;
+        }
+
+        /* CONTENIDO */
+        .content {
+            margin-left: 70px;
+            padding: 20px;
+        }
+
+        .contenido {
+            max-width: 1100px;
+            background-color: #ffffff;
+            padding: 18px;
+            border-radius: 6px;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        /* BOTONES */
+        .btn-background {
+            background-color: #c62828;
+            color: #fff;
+            border: none;
+            box-shadow: 0 0 8px #ef5350;
+        }
+
+        .btn-background:hover {
+            background-color: #8e0000;
+            color: #fff;
+        }
+
+        /* ALERTAS MENSAJES */
+        .alertPosition {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1050;
+            min-width: 300px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+
+            .content {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- NAVBAR SUPERIOR -->
+    {% block menu %}
+    <nav class="navbar fixed-top navbar-dark">
+        <div class="container-fluid">
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas"
+                data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <a class="navbar-brand ms-3" href="#">
+                {% if user.is_authenticated %}
+                    Bienvenido {{ user.username }}
+                {% endif %}
+            </a>
+
+            <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasNavbar">
+                <div class="offcanvas-header" style="background:#c62828;">
+                    <h5 class="text-white">Menú</h5>
+                    <button type="button" class="btn-close bg-light" data-bs-dismiss="offcanvas"></button>
+                </div>
+
+                <div class="offcanvas-body" style="background:#f4f4f4;">
+                    <ul class="navbar-nav">
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="/">Inicio</a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">Recursos Multimedia</a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">Herramientas</a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link text-danger" href="{% url 'logout' %}">
+                                Cerrar Sesión
+                            </a>
+                        </li>
+
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+    {% endblock menu %}
+
+    <!-- SIDEBAR LATERAL -->
+    {% block aside %}
+    <div class="sidebar">
+
+        <a href="/" class="{% if request.path == '/' %}active{% endif %}" data-bs-toggle="tooltip" title="Inicio">
+            <i class='bx bx-home-alt'></i>
+        </a>
+
+
+
+        <a href="#" data-bs-toggle="tooltip" title="Herramientas">
+            <i class='bx bx-wrench'></i>
+        </a>
+
+        <a href="{% url 'logout' %}" data-bs-toggle="tooltip" title="Cerrar Sesión">
+            <i class='bx bx-log-out'></i>
+        </a>
+
+    </div>
+    {% endblock aside %}
+
+    <!-- CONTENIDO CENTRAL -->
+    <div class="content">
+
+        {% block contenido %}
+        <div class="contenido">
+            <h3 class="mb-3">Contenido</h3>
+            <p>Bienvenido al sistema.</p>
+        </div>
+        {% endblock contenido %}
+
+    </div>
+
+
+    <!-- MENSAJES -->
+    {% if messages and page != "login" %}
+        <div class="container">
+
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible alertPosition fade show"
+                     id="message-{{ forloop.counter }}">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                {% for message in messages %}
+                    setTimeout(function() {
+                        var alert = document.getElementById('message-{{ forloop.counter }}');
+                        if (alert) new bootstrap.Alert(alert).close();
+                    }, 6000);
+                {% endfor %}
+            });
+        </script>
+    {% endif %}
+
+<script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var tooltipTriggerList = [].slice.call(
+                document.querySelectorAll('[data-bs-toggle="tooltip"]')
+            );
+
+            tooltipTriggerList.map(function (el) {
+                return new bootstrap.Tooltip(el);
+            });
+        });
+    </script>
+
+
+</body>
+</html>
