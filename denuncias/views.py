@@ -163,12 +163,25 @@ class DenunciaAdminUpdateView(generics.UpdateAPIView):
 
 
 class PanelFuncionarioView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
-    """Panel con mapa interactivo exclusivo para funcionarios municipales."""
+    """Panel con mapa interactivo exclusivo para fiscalizadores y administradores."""
 
     template_name = "denuncias/panel_funcionario.html"
 
     def test_func(self):
-        return getattr(self.request.user, "es_funcionario_municipal", False)
+        usuario = self.request.user
+
+        if not usuario.is_authenticated:
+            return False
+
+        puede_gestionar = getattr(usuario, "puede_gestionar_denuncias", None)
+
+        if callable(puede_gestionar):
+            puede_gestionar = puede_gestionar()
+
+        if puede_gestionar is None:
+            puede_gestionar = getattr(usuario, "es_funcionario_municipal", False)
+
+        return bool(puede_gestionar)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

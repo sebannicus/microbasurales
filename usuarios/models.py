@@ -28,5 +28,23 @@ class Usuario(AbstractUser):
 
         return self.rol == self.Roles.FUNCIONARIO_MUNICIPAL
 
+    @property
+    def es_fiscalizador(self) -> bool:
+        """True si el usuario corresponde al rol de fiscalizador."""
+
+        return self.rol == self.Roles.FISCALIZADOR
+
+    @property
+    def es_administrador(self) -> bool:
+        """True para cuentas administrativas o superusuarios."""
+
+        return self.rol == self.Roles.ADMINISTRADOR or self.is_superuser
+
+    @property
+    def puede_gestionar_denuncias(self) -> bool:
+        """Indica si el usuario puede acceder al panel de denuncias especializado."""
+
+        return self.es_fiscalizador or self.es_administrador
+
     def __str__(self):
         return f"{self.username} ({self.rol})"

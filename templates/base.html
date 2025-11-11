@@ -166,7 +166,7 @@
                             <a class="nav-link" href="#">Herramientas</a>
                         </li>
 
-                        {% if user.is_authenticated and user.es_funcionario_municipal %}
+                        {% if user.is_authenticated and user.puede_gestionar_denuncias %}
                         <li class="nav-item">
                             <a class="nav-link {% if request.path|is_panel_denuncias %}active{% endif %}" href="{% url 'panel_denuncias' %}">Panel de denuncias</a>
                         </li>
@@ -200,7 +200,7 @@
             <i class='bx bx-wrench'></i>
         </a>
 
-        {% if user.is_authenticated and user.es_funcionario_municipal %}
+        {% if user.is_authenticated and user.puede_gestionar_denuncias %}
         <a href="{% url 'panel_denuncias' %}" class="{% if request.path|is_panel_denuncias %}active{% endif %}" data-bs-toggle="tooltip" title="Panel de denuncias">
             <i class='bx bx-map-alt'></i>
         </a>

@@ -30,6 +30,15 @@
             gap: 0.5rem;
             font-weight: 600;
         }
+
+        .pendientes-card .table th,
+        .pendientes-card .table td {
+            vertical-align: middle;
+        }
+
+        .pendientes-card .btn-action {
+            min-width: 6rem;
+        }
     </style>
 {% endblock extra_head %}
 
@@ -90,6 +99,39 @@
             <i class="bi bi-arrow-repeat me-1"></i>Recargar datos
         </button>
     </div>
+
+    <section class="pendientes-card mt-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+                <div>
+                    <h5 class="mb-0">Denuncias pendientes</h5>
+                    <small class="text-muted">Listado actualizado de denuncias en estado "Nuevo".</small>
+                </div>
+                <div class="text-muted small mt-2 mt-md-0" id="contador-pendientes">0 casos</div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">Fecha</th>
+                            <th scope="col">Descripción</th>
+                            <th scope="col">Zona</th>
+                            <th scope="col">Denunciante</th>
+                            <th scope="col" class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="denuncias-pendientes-body">
+                        <tr id="sin-denuncias-pendientes">
+                            <td colspan="6" class="text-center text-muted py-4">
+                                No hay denuncias pendientes para mostrar.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
 </div>
 {% endblock contenido %}
 

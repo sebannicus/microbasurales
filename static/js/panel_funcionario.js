@@ -12,6 +12,14 @@
     const ultimaActualizacion = document.getElementById("ultima-actualizacion");
     const filtrosForm = document.getElementById("filtros-form");
     const recargarBtn = document.getElementById("recargar-btn");
+    const tablaPendientesBody = document.getElementById("denuncias-pendientes-body");
+    const sinDenunciasRow = document.getElementById("sin-denuncias-pendientes");
+    const contadorPendientes = document.getElementById("contador-pendientes");
+    const sinDenunciasTemplate = sinDenunciasRow ? sinDenunciasRow.cloneNode(true) : null;
+
+    if (sinDenunciasRow) {
+        sinDenunciasRow.remove();
+    }
 
     const ESTADO_COLORES = {
         pendiente: "#d62828",
@@ -35,11 +43,13 @@
     }).addTo(map);
 
     const markerLayer = L.layerGroup().addTo(map);
+    const marcadoresPorId = new Map();
     let filtrosActivos = {};
 
     async function cargarDenuncias(filtros = {}) {
         filtrosActivos = filtros;
         markerLayer.clearLayers();
+        marcadoresPorId.clear();
 
         try {
             const parametros = new URLSearchParams();
@@ -51,6 +61,7 @@
             paginaUrl.search = parametros.toString();
 
             const bounds = [];
+            const pendientes = [];
 
             while (paginaUrl) {
                 const respuesta = await fetch(paginaUrl.toString(), {
@@ -67,6 +78,9 @@
                 const data = await respuesta.json();
                 (data.results || []).forEach((denuncia) => {
                     agregarMarcador(denuncia, bounds);
+                    if (denuncia.estado === "pendiente") {
+                        pendientes.push(denuncia);
+                    }
                 });
 
                 if (data.next) {
@@ -78,12 +92,14 @@
 
             ajustarMapa(bounds);
             actualizarMarcaDeTiempo();
+            actualizarTablaPendientes(pendientes);
         } catch (error) {
             console.error(error);
             mostrarMensajeGlobal(
                 "No se pudieron cargar las denuncias. Intenta nuevamente.",
                 "danger"
             );
+            actualizarTablaPendientes([]);
         }
     }
 
@@ -104,6 +120,7 @@
 
         marker.bindPopup(construirPopup(denuncia));
         markerLayer.addLayer(marker);
+        marcadoresPorId.set(Number(denuncia.id), marker);
         bounds.push([denuncia.latitud, denuncia.longitud]);
     }
 
@@ -151,6 +168,149 @@
                 <div class="feedback mt-2"></div>
             </div>
         `;
+    }
+
+    function actualizarTablaPendientes(denuncias) {
+        if (!tablaPendientesBody) {
+            return;
+        }
+
+        tablaPendientesBody.innerHTML = "";
+
+        if (!denuncias.length) {
+            if (sinDenunciasTemplate) {
+                const filaVacia = sinDenunciasTemplate.cloneNode(true);
+                filaVacia.id = "";
+                tablaPendientesBody.appendChild(filaVacia);
+            }
+        } else {
+            denuncias.forEach((denuncia) => {
+                tablaPendientesBody.appendChild(crearFilaPendiente(denuncia));
+            });
+        }
+
+        if (contadorPendientes) {
+            const total = denuncias.length;
+            contadorPendientes.textContent = `${total} ${total === 1 ? "caso" : "casos"}`;
+        }
+    }
+
+    function crearFilaPendiente(denuncia) {
+        const fila = document.createElement("tr");
+        fila.dataset.denunciaId = String(denuncia.id);
+
+        const idTd = document.createElement("td");
+        idTd.textContent = `#${denuncia.id}`;
+
+        const fechaTd = document.createElement("td");
+        fechaTd.textContent = formatearFecha(denuncia.fecha_creacion);
+
+        const descripcionTd = document.createElement("td");
+        descripcionTd.textContent = resumirTexto(denuncia.descripcion);
+
+        const zonaTd = document.createElement("td");
+        zonaTd.textContent = denuncia.zona || "No asignada";
+
+        const denuncianteTd = document.createElement("td");
+        const nombreUsuario =
+            denuncia.usuario && denuncia.usuario.nombre
+                ? denuncia.usuario.nombre
+                : "Sin registro";
+        denuncianteTd.textContent = nombreUsuario;
+
+        const accionesTd = document.createElement("td");
+        accionesTd.className = "text-end";
+
+        const btnVisualizar = document.createElement("button");
+        btnVisualizar.type = "button";
+        btnVisualizar.className = "btn btn-outline-secondary btn-sm btn-action me-2";
+        btnVisualizar.textContent = "Visualizar";
+        btnVisualizar.addEventListener("click", () => {
+            centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: false });
+        });
+
+        const btnEditar = document.createElement("button");
+        btnEditar.type = "button";
+        btnEditar.className = "btn btn-background btn-sm btn-action";
+        btnEditar.textContent = "Editar";
+        btnEditar.addEventListener("click", () => {
+            centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: true });
+        });
+
+        accionesTd.appendChild(btnVisualizar);
+        accionesTd.appendChild(btnEditar);
+
+        fila.appendChild(idTd);
+        fila.appendChild(fechaTd);
+        fila.appendChild(descripcionTd);
+        fila.appendChild(zonaTd);
+        fila.appendChild(denuncianteTd);
+        fila.appendChild(accionesTd);
+
+        return fila;
+    }
+
+    function centrarDenunciaEnMapa(denunciaId, { enfocarFormulario = false } = {}) {
+        const marker = marcadoresPorId.get(Number(denunciaId));
+
+        if (!marker) {
+            mostrarMensajeGlobal(
+                "No encontramos la denuncia seleccionada en el mapa actual.",
+                "warning"
+            );
+            return;
+        }
+
+        const latLng = marker.getLatLng();
+        map.setView(latLng, Math.max(map.getZoom(), 15), { animate: true });
+        marker.openPopup();
+
+        if (enfocarFormulario) {
+            setTimeout(() => {
+                const popup = marker.getPopup();
+                if (!popup) {
+                    return;
+                }
+                const popupElement = popup.getElement();
+                if (!popupElement) {
+                    return;
+                }
+                const primerCampo = popupElement.querySelector(
+                    ".update-form select, .update-form input"
+                );
+                if (primerCampo) {
+                    primerCampo.focus();
+                }
+            }, 300);
+        }
+    }
+
+    function resumirTexto(texto) {
+        if (!texto) {
+            return "Sin descripción";
+        }
+        const limpio = String(texto).trim();
+        if (limpio.length <= 80) {
+            return limpio;
+        }
+        return `${limpio.slice(0, 77)}…`;
+    }
+
+    function formatearFecha(fechaIso) {
+        if (!fechaIso) {
+            return "-";
+        }
+        const fecha = new Date(fechaIso);
+        if (Number.isNaN(fecha.getTime())) {
+            return "-";
+        }
+        return fecha.toLocaleString("es-CL", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
     }
 
     function ajustarMapa(bounds) {
