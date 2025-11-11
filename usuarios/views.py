@@ -1,24 +1,13 @@
 from django.contrib import messages
-from django.contrib.auth import authenticate, get_user_model, login
+from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from rest_framework import generics
-
-from rest_framework.permissions import AllowAny
-
-from .serializers import UsuarioRegistroSerializer
-
-from django.contrib.auth import get_user_model
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from .serializers import UsuarioRegistroSerializer
-from django.shortcuts import render, redirect
-from django.contrib.auth import authenticate, login, logout
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-
-# DRF imports
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+
+from .serializers import UsuarioRegistroSerializer
 
 Usuario = get_user_model()
 
@@ -40,11 +29,10 @@ def login_view(request):
 
         if user is not None:
             login(request, user)
+            if getattr(user, "es_funcionario_municipal", False):
+                return redirect("panel_denuncias")
             return redirect("home_ciudadano")
         messages.error(request, "Usuario o contraseña incorrectos")
-
-    return render(request, "login.html", {"page": "login"})
-
 
     return render(request, "login.html", {"page": "login"})
 

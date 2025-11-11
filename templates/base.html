@@ -21,6 +21,8 @@
         mermaid.initialize({ startOnLoad: true, theme: "dark" });
     </script>
 
+    {% block extra_head %}{% endblock extra_head %}
+
     <!-- Estilos globales -->
     <style>
         body {
@@ -164,6 +166,12 @@
                             <a class="nav-link" href="#">Herramientas</a>
                         </li>
 
+                        {% if user.is_authenticated and user.es_funcionario_municipal %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path.startswith('/panel/denuncias/') %}active{% endif %}" href="{% url 'panel_denuncias' %}">Panel de denuncias</a>
+                        </li>
+                        {% endif %}
+
                         <li class="nav-item">
                             <a class="nav-link text-danger" href="{% url 'logout' %}">
                                 Cerrar Sesión
@@ -191,6 +199,12 @@
         <a href="#" data-bs-toggle="tooltip" title="Herramientas">
             <i class='bx bx-wrench'></i>
         </a>
+
+        {% if user.is_authenticated and user.es_funcionario_municipal %}
+        <a href="{% url 'panel_denuncias' %}" class="{% if request.path.startswith('/panel/denuncias/') %}active{% endif %}" data-bs-toggle="tooltip" title="Panel de denuncias">
+            <i class='bx bx-map-alt'></i>
+        </a>
+        {% endif %}
 
         <a href="{% url 'logout' %}" data-bs-toggle="tooltip" title="Cerrar Sesión">
             <i class='bx bx-log-out'></i>
@@ -250,6 +264,8 @@
             });
         });
     </script>
+
+    {% block extra_scripts %}{% endblock extra_scripts %}
 
 
 </body>

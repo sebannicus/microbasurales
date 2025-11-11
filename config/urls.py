@@ -3,12 +3,14 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
+from denuncias.views import PanelFuncionarioView
 from usuarios.views import home_ciudadano_view, login_view
 
 urlpatterns = [
     path('', login_view, name='login'),
     path('home/', home_ciudadano_view, name='home_ciudadano'),
     path('', include('usuarios.urls')),
+    path('panel/denuncias/', PanelFuncionarioView.as_view(), name='panel_denuncias'),
 
     path('admin/', admin.site.urls),
 

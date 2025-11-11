@@ -2,12 +2,7 @@ from django.contrib.auth.views import LogoutView
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-
-from .views import RegistroUsuarioView, login_view
-
-
-from .views import RegistroUsuarioView, login_view, home_view, me_view
-from django.contrib.auth.views import LogoutView
+from .views import RegistroUsuarioView, home_view, login_view, me_view
 
 
 urlpatterns = [
