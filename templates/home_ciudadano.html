@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block contenido %}
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+/>
+<style>
+    .hero-ciudadano {
+        background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 45%, #ef9a9a 100%);
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    .hero-ciudadano h1 {
+        font-weight: 700;
+        color: #7f0000;
+    }
+
+    .hero-ciudadano p {
+        font-size: 1rem;
+        color: #4a4a4a;
+    }
+
+    .denuncias-card {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
+    }
+
+    .denuncias-card .card-header {
+        background-color: #c62828;
+        color: #fff;
+        border-top-left-radius: 12px;
+        border-top-right-radius: 12px;
+    }
+
+    .btn-denuncia {
+        background-color: #c62828;
+        border: none;
+        color: #fff;
+        box-shadow: 0 0 10px rgba(198, 40, 40, 0.4);
+    }
+
+    .btn-denuncia:hover {
+        background-color: #8e0000;
+        color: #fff;
+    }
+
+    .denuncia-map {
+        height: 300px;
+        border-radius: 12px;
+        box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .tabla-denuncias img {
+        max-width: 80px;
+        border-radius: 6px;
+    }
+
+    .alert-placeholder {
+        min-height: 58px;
+    }
+</style>
+
+<div class="container py-4">
+    <div class="hero-ciudadano mb-4">
+        <div class="row align-items-center g-3">
+            <div class="col-lg-8">
+                <h1 class="mb-2">Hola, {{ user.first_name|default:user.username }} 👋</h1>
+                <p class="mb-0">
+                    Desde aquí puedes reportar microbasurales en tu barrio. Selecciona la ubicación en el
+                    mapa, agrega una descripción y una fotografía opcional. Nuestro equipo municipal hará el
+                    seguimiento correspondiente.
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end text-center">
+                <button class="btn btn-denuncia px-4 py-2" data-bs-toggle="modal" data-bs-target="#modalDenuncia">
+                    <i class='bx bx-plus-medical me-1'></i> Ingresar Denuncia
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert-placeholder" id="alertPlaceholder"></div>
+
+    <div class="card denuncias-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Mis denuncias recientes</h5>
+            <span class="badge bg-light text-dark" id="totalDenuncias">
+                {{ denuncias|length }} registro{{ denuncias|length|pluralize }}
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive tabla-denuncias">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Descripción</th>
+                            <th>Ubicación</th>
+                            <th>Estado</th>
+                            <th>Foto</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaDenunciasBody">
+                        {% for denuncia in denuncias %}
+                            <tr data-denuncia-id="{{ denuncia.id }}">
+                                <td>{{ denuncia.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                                <td>{{ denuncia.descripcion|truncatechars:120 }}</td>
+                                <td>
+                                    <small>
+                                        Lat: {{ denuncia.latitud }}<br>
+                                        Lng: {{ denuncia.longitud }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <span class="badge text-bg-light">{{ denuncia.get_estado_display }}</span>
+                                </td>
+                                <td>
+                                    {% if denuncia.imagen %}
+                                        <img src="{{ denuncia.imagen.url }}" alt="Foto denuncia">
+                                    {% else %}
+                                        <span class="text-muted">Sin imagen</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="mb-0 text-muted{% if denuncias %} d-none{% endif %}" id="sinDenuncias">
+                Aún no has registrado denuncias. ¡Comienza con el botón "Ingresar Denuncia"!
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDenuncia" tabindex="-1" aria-labelledby="modalDenunciaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#c62828; color:#fff;">
+                <h5 class="modal-title" id="modalDenunciaLabel">Registrar nueva denuncia</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="denunciaForm" enctype="multipart/form-data">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="row g-4">
+                        <div class="col-lg-6">
+                            <label for="descripcion" class="form-label">Descripción del problema</label>
+                            <textarea class="form-control" id="descripcion" name="descripcion" rows="5" placeholder="Describe qué observaste" required></textarea>
+
+                            <label for="imagen" class="form-label mt-3">Fotografía (opcional)</label>
+                            <input class="form-control" type="file" id="imagen" name="imagen" accept="image/*">
+                        </div>
+                        <div class="col-lg-6">
+                            <label class="form-label">Selecciona la ubicación en el mapa</label>
+                            <div id="map" class="denuncia-map"></div>
+                            <div class="row g-2 mt-2">
+                                <div class="col-md-6">
+                                    <label for="latitud" class="form-label">Latitud</label>
+                                    <input type="text" class="form-control" id="latitud" name="latitud" readonly required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="longitud" class="form-label">Longitud</label>
+                                    <input type="text" class="form-control" id="longitud" name="longitud" readonly required>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline-danger mt-3 w-100" type="button" id="btnUbicacion">
+                                <i class='bx bx-current-location me-1'></i> Usar mi ubicación actual
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-denuncia">Guardar denuncia</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+></script>
+<script>
+    const formDenuncia = document.getElementById('denunciaForm');
+    const alertPlaceholder = document.getElementById('alertPlaceholder');
+    const tablaDenunciasBody = document.getElementById('tablaDenunciasBody');
+    const modalDenuncia = document.getElementById('modalDenuncia');
+    const modal = modalDenuncia ? new bootstrap.Modal(modalDenuncia) : null;
+    const totalDenunciasBadge = document.getElementById('totalDenuncias');
+    const sinDenunciasMensaje = document.getElementById('sinDenuncias');
+
+    const map = L.map('map').setView([-33.4489, -70.6693], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    if (modalDenuncia) {
+        modalDenuncia.addEventListener('shown.bs.modal', () => {
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 200);
+        });
+    }
+
+    let marker = null;
+
+    function actualizarMarcador(lat, lng) {
+        if (!lat || !lng) {
+            return;
+        }
+        const latitud = parseFloat(lat);
+        const longitud = parseFloat(lng);
+        if (Number.isNaN(latitud) || Number.isNaN(longitud)) {
+            return;
+        }
+        if (marker) {
+            marker.setLatLng([latitud, longitud]);
+        } else {
+            marker = L.marker([latitud, longitud]).addTo(map);
+        }
+        map.setView([latitud, longitud], 15);
+        document.getElementById('latitud').value = latitud.toFixed(6);
+        document.getElementById('longitud').value = longitud.toFixed(6);
+    }
+
+    map.on('click', function (event) {
+        actualizarMarcador(event.latlng.lat, event.latlng.lng);
+    });
+
+    const btnUbicacion = document.getElementById('btnUbicacion');
+    if (btnUbicacion) {
+        btnUbicacion.addEventListener('click', function () {
+            if (!navigator.geolocation) {
+                mostrarAlerta('Tu navegador no soporta geolocalización.', 'warning');
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                function (posicion) {
+                    const { latitude, longitude } = posicion.coords;
+                    actualizarMarcador(latitude, longitude);
+                },
+                function () {
+                    mostrarAlerta('No pudimos obtener tu ubicación. Intenta seleccionarla manualmente.', 'warning');
+                }
+            );
+        });
+    }
+
+    function mostrarAlerta(mensaje, tipo = 'success') {
+        alertPlaceholder.innerHTML = `
+            <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
+                ${mensaje}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function agregarDenunciaATabla(denuncia) {
+        if (!tablaDenunciasBody) {
+            return;
+        }
+        const fila = document.createElement('tr');
+        fila.dataset.denunciaId = denuncia.id;
+        fila.innerHTML = `
+            <td>${new Date(denuncia.fecha_creacion).toLocaleString('es-CL')}</td>
+            <td>${denuncia.descripcion}</td>
+            <td><small>Lat: ${Number(denuncia.latitud).toFixed(6)}<br>Lng: ${Number(denuncia.longitud).toFixed(6)}</small></td>
+            <td><span class="badge text-bg-light">${denuncia.estado_display || ''}</span></td>
+            <td>${denuncia.imagen ? `<img src="${denuncia.imagen}" alt="Foto denuncia">` : '<span class="text-muted">Sin imagen</span>'}</td>
+        `;
+        tablaDenunciasBody.prepend(fila);
+        if (sinDenunciasMensaje) {
+            sinDenunciasMensaje.classList.add('d-none');
+        }
+        if (totalDenunciasBadge) {
+            const total = tablaDenunciasBody.querySelectorAll('tr').length;
+            totalDenunciasBadge.textContent = `${total} registro${total !== 1 ? 's' : ''}`;
+        }
+    }
+
+    if (formDenuncia) {
+        formDenuncia.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            const latitud = document.getElementById('latitud').value;
+            const longitud = document.getElementById('longitud').value;
+            if (!latitud || !longitud) {
+                mostrarAlerta('Debes seleccionar una ubicación en el mapa.', 'danger');
+                return;
+            }
+
+            const formData = new FormData(formDenuncia);
+            const csrfToken = formDenuncia.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
+            try {
+                const respuesta = await fetch('/api/denuncias/crear/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: formData,
+                });
+
+                if (!respuesta.ok) {
+                    const errorData = await respuesta.json().catch(() => ({}));
+                    let mensajeError = errorData?.detail;
+                    if (!mensajeError && errorData && typeof errorData === 'object') {
+                        const firstErrorKey = Object.keys(errorData)[0];
+                        if (firstErrorKey) {
+                            const rawError = errorData[firstErrorKey];
+                            if (Array.isArray(rawError) && rawError.length > 0) {
+                                mensajeError = rawError[0];
+                            } else if (typeof rawError === 'string') {
+                                mensajeError = rawError;
+                            }
+                        }
+                    }
+                    if (!mensajeError) {
+                        mensajeError = 'No se pudo registrar la denuncia. Revisa los datos ingresados.';
+                    }
+                    mostrarAlerta(mensajeError, 'danger');
+                    return;
+                }
+
+                const data = await respuesta.json();
+                agregarDenunciaATabla(data);
+                formDenuncia.reset();
+                if (marker) {
+                    map.removeLayer(marker);
+                    marker = null;
+                }
+                document.getElementById('latitud').value = '';
+                document.getElementById('longitud').value = '';
+                mostrarAlerta('¡Denuncia registrada correctamente! Puedes verla en la tabla inferior.');
+                if (modal) {
+                    modal.hide();
+                }
+            } catch (error) {
+                console.error(error);
+                mostrarAlerta('Ocurrió un error inesperado. Inténtalo nuevamente.', 'danger');
+            }
+        });
+    }
+</script>
+{% endblock %}

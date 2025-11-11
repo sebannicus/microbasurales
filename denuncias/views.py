@@ -20,8 +20,13 @@ class CrearDenunciaView(generics.CreateAPIView):
     serializer_class = CrearDenunciaSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def perform_create(self, serializer):
-        serializer.save(usuario=self.request.user)
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        denuncia = serializer.save(usuario=request.user)
+        respuesta = DenunciaSerializer(denuncia, context={"request": request})
+        headers = self.get_success_headers(respuesta.data)
+        return Response(respuesta.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 # ✅ 2. Listar todas las denuncias (público o autenticado)
@@ -80,28 +85,4 @@ class CambiarEstadoView(APIView):
 
         return Response({"mensaje": "Estado actualizado correctamente."})
 
-
-# ================================
-#   VISTAS HTML
-# ================================
-from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout
-from django.shortcuts import render, redirect
-
-
-def login_view(request):
-    if request.method == "POST":
-        username = request.POST.get("username")
-        password = request.POST.get("password")
-
-        user = authenticate(request, username=username, password=password)
-
-        if user is not None:
-            login(request, user)
-            return redirect("home")   # ✅ ESTA ES LA PARTE IMPORTANTE
-        else:
-            messages.error(request, "Usuario o contraseña incorrectos")
-            return redirect("login_django")  # O el nombre de tu URL
-
-    return render(request, "login.html")
 

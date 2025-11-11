@@ -17,7 +17,6 @@ class Denuncia(models.Model):
         related_name='denuncias'
     )
 
-    titulo = models.CharField(max_length=200)
     descripcion = models.TextField()
 
     # Ubicación sin GIS, usando latitud y longitud
@@ -42,4 +41,4 @@ class Denuncia(models.Model):
     )
 
     def __str__(self):
-        return f"{self.titulo} - {self.estado}"
+        return f"Denuncia de {self.usuario} ({self.estado})"

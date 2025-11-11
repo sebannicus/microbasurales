@@ -1,11 +1,12 @@
-from rest_framework import generics
-from django.contrib.auth import get_user_model
-from rest_framework.permissions import AllowAny
-from .serializers import UsuarioRegistroSerializer
-from django.shortcuts import render, redirect
-from django.contrib.auth import authenticate, login
 from django.contrib import messages
+from django.contrib.auth import authenticate, get_user_model, login
 from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render
+from rest_framework import generics
+from rest_framework.permissions import AllowAny
+
+from denuncias.models import Denuncia
+from .serializers import UsuarioRegistroSerializer
 
 Usuario = get_user_model()
 
@@ -27,12 +28,23 @@ def login_view(request):
 
         if user is not None:
             login(request, user)
-            return redirect("home")
-        else:
-            messages.error(request, "Usuario o contraseña incorrectos")
+            return redirect("home_ciudadano")
+        messages.error(request, "Usuario o contraseña incorrectos")
 
-    return render(request, "login.html", { "page": "login" })
+    return render(request, "login.html", {"page": "login"})
+
 
 @login_required
-def home_view(request):
-    return render(request, "home.html")
+def home_ciudadano_view(request):
+    denuncias = (
+        Denuncia.objects.filter(usuario=request.user)
+        .select_related("usuario")
+        .order_by("-fecha_creacion")
+    )
+    return render(
+        request,
+        "home_ciudadano.html",
+        {
+            "denuncias": denuncias,
+        },
+    )
