@@ -2,11 +2,13 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from django.views.decorators.http import require_http_methods
 from rest_framework import generics
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from .forms import RegistroUsuarioForm
 from .serializers import UsuarioRegistroSerializer
 
 Usuario = get_user_model()
@@ -35,6 +37,25 @@ def login_view(request):
         messages.error(request, "Usuario o contraseña incorrectos")
 
     return render(request, "login.html", {"page": "login"})
+
+
+@require_http_methods(["GET", "POST"])
+def register_view(request):
+    form = RegistroUsuarioForm(request.POST or None)
+
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Tu cuenta se creó correctamente. Ahora puedes iniciar sesión.")
+        return redirect("login_django")
+
+    return render(
+        request,
+        "usuarios/registro.html",
+        {
+            "form": form,
+            "page": "register",
+        },
+    )
 
 
 # ✅ HOME HTML (vista protegida)
