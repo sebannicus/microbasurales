@@ -92,7 +92,7 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Mis denuncias recientes</h5>
             <span class="badge bg-light text-dark" id="totalDenuncias">
-                {{ denuncias|length }} registro{{ denuncias|length|pluralize }}
+                0 registros
             </span>
         </div>
         <div class="card-body">
@@ -107,33 +107,10 @@
                             <th>Foto</th>
                         </tr>
                     </thead>
-                    <tbody id="tablaDenunciasBody">
-                        {% for denuncia in denuncias %}
-                            <tr data-denuncia-id="{{ denuncia.id }}">
-                                <td>{{ denuncia.fecha_creacion|date:"d/m/Y H:i" }}</td>
-                                <td>{{ denuncia.descripcion|truncatechars:120 }}</td>
-                                <td>
-                                    <small>
-                                        Lat: {{ denuncia.latitud }}<br>
-                                        Lng: {{ denuncia.longitud }}
-                                    </small>
-                                </td>
-                                <td>
-                                    <span class="badge text-bg-light">{{ denuncia.get_estado_display }}</span>
-                                </td>
-                                <td>
-                                    {% if denuncia.imagen %}
-                                        <img src="{{ denuncia.imagen.url }}" alt="Foto denuncia">
-                                    {% else %}
-                                        <span class="text-muted">Sin imagen</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
+                    <tbody id="tablaDenunciasBody"></tbody>
                 </table>
             </div>
-            <p class="mb-0 text-muted{% if denuncias %} d-none{% endif %}" id="sinDenuncias">
+            <p class="mb-0 text-muted" id="sinDenuncias">
                 Aún no has registrado denuncias. ¡Comienza con el botón "Ingresar Denuncia"!
             </p>
         </div>
@@ -199,6 +176,11 @@
     const modal = modalDenuncia ? new bootstrap.Modal(modalDenuncia) : null;
     const totalDenunciasBadge = document.getElementById('totalDenuncias');
     const sinDenunciasMensaje = document.getElementById('sinDenuncias');
+    const ESTADOS_LABEL = {
+        pendiente: 'Pendiente',
+        en_proceso: 'En proceso',
+        resuelta: 'Resuelta',
+    };
 
     const map = L.map('map').setView([-33.4489, -70.6693], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -267,26 +249,74 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function agregarDenunciaATabla(denuncia) {
+    function formatearEstado(denuncia) {
+        if (denuncia.estado_display) {
+            return denuncia.estado_display;
+        }
+        return ESTADOS_LABEL[denuncia.estado] || denuncia.estado;
+    }
+
+    function agregarDenunciaATabla(denuncia, { prepend = true } = {}) {
         if (!tablaDenunciasBody) {
             return;
         }
         const fila = document.createElement('tr');
         fila.dataset.denunciaId = denuncia.id;
+        const latitud = Number.parseFloat(denuncia.latitud);
+        const longitud = Number.parseFloat(denuncia.longitud);
+        const latitudTexto = Number.isFinite(latitud) ? latitud.toFixed(6) : '--';
+        const longitudTexto = Number.isFinite(longitud) ? longitud.toFixed(6) : '--';
         fila.innerHTML = `
             <td>${new Date(denuncia.fecha_creacion).toLocaleString('es-CL')}</td>
             <td>${denuncia.descripcion}</td>
-            <td><small>Lat: ${Number(denuncia.latitud).toFixed(6)}<br>Lng: ${Number(denuncia.longitud).toFixed(6)}</small></td>
-            <td><span class="badge text-bg-light">${denuncia.estado_display || ''}</span></td>
+            <td><small>Lat: ${latitudTexto}<br>Lng: ${longitudTexto}</small></td>
+            <td><span class="badge text-bg-light">${formatearEstado(denuncia)}</span></td>
             <td>${denuncia.imagen ? `<img src="${denuncia.imagen}" alt="Foto denuncia">` : '<span class="text-muted">Sin imagen</span>'}</td>
         `;
-        tablaDenunciasBody.prepend(fila);
+        if (prepend) {
+            tablaDenunciasBody.prepend(fila);
+        } else {
+            tablaDenunciasBody.appendChild(fila);
+        }
         if (sinDenunciasMensaje) {
             sinDenunciasMensaje.classList.add('d-none');
         }
         if (totalDenunciasBadge) {
             const total = tablaDenunciasBody.querySelectorAll('tr').length;
             totalDenunciasBadge.textContent = `${total} registro${total !== 1 ? 's' : ''}`;
+        }
+    }
+
+    async function cargarDenuncias() {
+        if (!tablaDenunciasBody) {
+            return;
+        }
+
+        try {
+            const respuesta = await fetch('/api/denuncias/mis/');
+
+            if (!respuesta.ok) {
+                throw new Error('No se pudieron obtener tus denuncias.');
+            }
+
+            const data = await respuesta.json();
+
+            tablaDenunciasBody.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                if (sinDenunciasMensaje) {
+                    sinDenunciasMensaje.classList.remove('d-none');
+                }
+                if (totalDenunciasBadge) {
+                    totalDenunciasBadge.textContent = '0 registros';
+                }
+                return;
+            }
+
+            data.forEach((denuncia) => agregarDenunciaATabla(denuncia, { prepend: false }));
+        } catch (error) {
+            console.error(error);
+            mostrarAlerta('No se pudieron cargar tus denuncias. Intenta nuevamente.', 'danger');
         }
     }
 
@@ -304,7 +334,7 @@
             const csrfToken = formDenuncia.querySelector('input[name="csrfmiddlewaretoken"]').value;
 
             try {
-                const respuesta = await fetch('/api/denuncias/crear/', {
+                const respuesta = await fetch('/api/denuncias/', {
                     method: 'POST',
                     headers: {
                         'X-CSRFToken': csrfToken,
@@ -352,5 +382,7 @@
             }
         });
     }
+
+    cargarDenuncias();
 </script>
 {% endblock %}

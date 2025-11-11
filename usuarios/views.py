@@ -5,7 +5,6 @@ from django.shortcuts import redirect, render
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 
-from denuncias.models import Denuncia
 from .serializers import UsuarioRegistroSerializer
 
 Usuario = get_user_model()
@@ -36,15 +35,5 @@ def login_view(request):
 
 @login_required
 def home_ciudadano_view(request):
-    denuncias = (
-        Denuncia.objects.filter(usuario=request.user)
-        .select_related("usuario")
-        .order_by("-fecha_creacion")
-    )
-    return render(
-        request,
-        "home_ciudadano.html",
-        {
-            "denuncias": denuncias,
-        },
-    )
+    return render(request, "home_ciudadano.html")
+

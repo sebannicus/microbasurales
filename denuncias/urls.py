@@ -1,14 +1,9 @@
 from django.urls import path
-from .views import (
-    CrearDenunciaView,
-    ListarDenunciasView,
-    DenunciaDetalleView,
-    CambiarEstadoView,
-)
+
+from .views import DenunciaListCreateView, MisDenunciasListView
+
 
 urlpatterns = [
-    path('', ListarDenunciasView.as_view(), name='listar_denuncias'),
-    path('crear/', CrearDenunciaView.as_view(), name='crear_denuncia'),
-    path('<int:pk>/', DenunciaDetalleView.as_view(), name='detalle_denuncia'),
-    path('<int:pk>/estado/', CambiarEstadoView.as_view(), name='cambiar_estado'),
+    path("", DenunciaListCreateView.as_view(), name="denuncias_list_create"),
+    path("mis/", MisDenunciasListView.as_view(), name="mis_denuncias"),
 ]
