@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-{% load static %}
+{% load static request_extras %}
 <html lang="es">
 
 <head>
@@ -168,7 +168,7 @@
 
                         {% if user.is_authenticated and user.es_funcionario_municipal %}
                         <li class="nav-item">
-                            <a class="nav-link {% if request.path.startswith('/panel/denuncias/') %}active{% endif %}" href="{% url 'panel_denuncias' %}">Panel de denuncias</a>
+                            <a class="nav-link {% if request.path|startswith:"/panel/denuncias/" %}active{% endif %}" href="{% url 'panel_denuncias' %}">Panel de denuncias</a>
                         </li>
                         {% endif %}
 
@@ -201,7 +201,7 @@
         </a>
 
         {% if user.is_authenticated and user.es_funcionario_municipal %}
-        <a href="{% url 'panel_denuncias' %}" class="{% if request.path.startswith('/panel/denuncias/') %}active{% endif %}" data-bs-toggle="tooltip" title="Panel de denuncias">
+        <a href="{% url 'panel_denuncias' %}" class="{% if request.path|startswith:"/panel/denuncias/" %}active{% endif %}" data-bs-toggle="tooltip" title="Panel de denuncias">
             <i class='bx bx-map-alt'></i>
         </a>
         {% endif %}

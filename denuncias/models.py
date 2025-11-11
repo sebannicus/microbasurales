@@ -31,6 +31,8 @@ class Denuncia(models.Model):
         blank=True,
         default="",
         help_text="Sector o zona operativa asignada por el municipio.",
+    )
+
     # Dirección legible seleccionada por la persona denunciante
     direccion_textual = models.CharField(
         max_length=255,

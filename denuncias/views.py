@@ -1,4 +1,7 @@
+import logging
+
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.db import OperationalError, ProgrammingError
 from django.urls import reverse
 from django.utils.dateparse import parse_date
 from django.views.generic import TemplateView
@@ -11,6 +14,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Denuncia
 from .permissions import IsFuncionarioMunicipal
 from .serializers import DenunciaAdminSerializer, DenunciaSerializer
+
+
+logger = logging.getLogger(__name__)
 
 
 class DenunciasPagination(PageNumberPagination):
@@ -154,6 +160,20 @@ class PanelFuncionarioView(LoginRequiredMixin, UserPassesTestMixin, TemplateView
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         refresh = RefreshToken.for_user(self.request.user)
+        try:
+            zonas_disponibles = (
+                Denuncia.objects.exclude(zona="")
+                .order_by("zona")
+                .values_list("zona", flat=True)
+                .distinct()
+            )
+        except (ProgrammingError, OperationalError):
+            zonas_disponibles = []
+            logger.warning(
+                "No se pudo cargar la lista de zonas disponibles; ¿ejecutaste las migraciones?",
+                exc_info=True,
+            )
+
         context.update(
             {
                 "access_token": str(refresh.access_token),
@@ -163,10 +183,7 @@ class PanelFuncionarioView(LoginRequiredMixin, UserPassesTestMixin, TemplateView
                 "api_update_url": self.request.build_absolute_uri(
                     reverse("denuncias_admin_update", args=[0])
                 ),
-                "zonas_disponibles": Denuncia.objects.exclude(zona="")
-                .order_by("zona")
-                .values_list("zona", flat=True)
-                .distinct(),
+                "zonas_disponibles": zonas_disponibles,
             }
         )
         return context
