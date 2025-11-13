@@ -1,10 +1,12 @@
 import logging
+from urllib.parse import urlencode
 
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.decorators import login_required
 from django.db import OperationalError, ProgrammingError
+from django.db.models import Q
+from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.dateparse import parse_date
-from django.views.generic import TemplateView
 from rest_framework import generics, permissions, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
@@ -126,7 +128,27 @@ class DenunciaAdminListView(generics.ListAPIView):
 
         estado = self.request.query_params.get("estado")
         if estado:
-            queryset = queryset.filter(estado=estado)
+            estado_normalizado = estado.lower()
+            if estado_normalizado == "finalizado":
+                queryset = queryset.filter(
+                    Q(estado__iexact="finalizado")
+                    | Q(estado=Denuncia.EstadoDenuncia.RESUELTA)
+                )
+            else:
+                queryset = queryset.filter(estado=estado)
+
+        excluir_estado = self.request.query_params.get("excluir_estado")
+        if excluir_estado:
+            queryset = queryset.exclude(estado__iexact=excluir_estado)
+
+        solo_activos = self.request.query_params.get("solo_activos")
+        if solo_activos is not None:
+            valor_normalizado = str(solo_activos).lower()
+            if valor_normalizado in {"1", "true", "t", "yes", "on"}:
+                queryset = queryset.exclude(
+                    Q(estado__iexact="finalizado")
+                    | Q(estado=Denuncia.EstadoDenuncia.RESUELTA)
+                )
 
         zona = self.request.query_params.get("zona")
         if zona:
@@ -162,54 +184,90 @@ class DenunciaAdminUpdateView(generics.UpdateAPIView):
         return context
 
 
-class PanelFuncionarioView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
-    """Panel con mapa interactivo exclusivo para fiscalizadores y administradores."""
+def _usuario_puede_gestionar_denuncias(usuario) -> bool:
+    """Devuelve ``True`` si el usuario tiene permisos de fiscalizador o administrador."""
 
-    template_name = "denuncias/panel_funcionario.html"
+    puede_gestionar = getattr(usuario, "puede_gestionar_denuncias", None)
 
-    def test_func(self):
-        usuario = self.request.user
+    if callable(puede_gestionar):
+        puede_gestionar = puede_gestionar()
 
-        if not usuario.is_authenticated:
-            return False
+    if puede_gestionar is None:
+        puede_gestionar = getattr(usuario, "es_funcionario_municipal", False)
 
-        puede_gestionar = getattr(usuario, "puede_gestionar_denuncias", None)
+    return bool(puede_gestionar)
 
-        if callable(puede_gestionar):
-            puede_gestionar = puede_gestionar()
 
-        if puede_gestionar is None:
-            puede_gestionar = getattr(usuario, "es_funcionario_municipal", False)
+def _construir_panel_context(request, *, solo_activos=False, solo_finalizados=False):
+    """Genera el contexto para el panel de fiscalizadores con filtros personalizados."""
 
-        return bool(puede_gestionar)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        refresh = RefreshToken.for_user(self.request.user)
-        try:
-            zonas_disponibles = (
-                Denuncia.objects.exclude(zona="")
-                .order_by("zona")
-                .values_list("zona", flat=True)
-                .distinct()
-            )
-        except (ProgrammingError, OperationalError):
-            zonas_disponibles = []
-            logger.warning(
-                "No se pudo cargar la lista de zonas disponibles; ¿ejecutaste las migraciones?",
-                exc_info=True,
-            )
-
-        context.update(
-            {
-                "access_token": str(refresh.access_token),
-                "api_url": self.request.build_absolute_uri(
-                    reverse("denuncias_admin_list")
-                ),
-                "api_update_url": self.request.build_absolute_uri(
-                    reverse("denuncias_admin_update", args=[0])
-                ),
-                "zonas_disponibles": zonas_disponibles,
-            }
+    refresh = RefreshToken.for_user(request.user)
+    try:
+        zonas_disponibles = (
+            Denuncia.objects.exclude(zona="")
+            .order_by("zona")
+            .values_list("zona", flat=True)
+            .distinct()
         )
-        return context
+    except (ProgrammingError, OperationalError):
+        zonas_disponibles = []
+        logger.warning(
+            "No se pudo cargar la lista de zonas disponibles; ¿ejecutaste las migraciones?",
+            exc_info=True,
+        )
+
+    base_api_url = request.build_absolute_uri(reverse("denuncias_admin_list"))
+    query_params = {}
+
+    if solo_finalizados:
+        query_params["estado"] = "finalizado"
+    elif solo_activos:
+        query_params["solo_activos"] = "1"
+
+    api_url = base_api_url
+    if query_params:
+        api_url = f"{base_api_url}?{urlencode(query_params)}"
+
+    return {
+        "access_token": str(refresh.access_token),
+        "api_url": api_url,
+        "api_update_url": request.build_absolute_uri(
+            reverse("denuncias_admin_update", args=[0])
+        ),
+        "zonas_disponibles": zonas_disponibles,
+        "solo_activos": bool(solo_activos and not solo_finalizados),
+        "solo_finalizados": bool(solo_finalizados),
+    }
+
+
+def _panel_fiscalizador_response(request, *, solo_activos=False, solo_finalizados=False):
+    if not _usuario_puede_gestionar_denuncias(request.user):
+        return redirect("home")
+
+    context = _construir_panel_context(
+        request,
+        solo_activos=solo_activos,
+        solo_finalizados=solo_finalizados,
+    )
+    return render(request, "denuncias/panel_funcionario.html", context)
+
+
+@login_required
+def panel_fiscalizador_activos(request):
+    """Panel principal que muestra solo denuncias activas."""
+
+    return _panel_fiscalizador_response(request, solo_activos=True)
+
+
+@login_required
+def panel_fiscalizador_finalizados(request):
+    """Panel con las denuncias marcadas como finalizadas."""
+
+    return _panel_fiscalizador_response(request, solo_finalizados=True)
+
+
+@login_required
+def panel_denuncias_alias(request):
+    """Alias para mantener compatibilidad con enlaces existentes del panel."""
+
+    return _panel_fiscalizador_response(request, solo_activos=True)
