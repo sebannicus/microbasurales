@@ -61,7 +61,7 @@ def login_view(request):
                 Usuario.Roles.FISCALIZADOR,
                 Usuario.Roles.ADMINISTRADOR,
             } or getattr(user, "es_administrador", False):
-                return redirect("panel_denuncias")
+                return redirect("panel_fiscalizador_activos")
 
             logout(request)
             messages.error(
@@ -96,29 +96,33 @@ def register_view(request):
 # ✅ HOME HTML (vista protegida)
 @login_required
 def home_ciudadano_view(request):
-    return render(request, "home_ciudadano.html")
+    """Vista principal que delega en ``home_view`` para las reglas de rol."""
+
+    return home_view(request)
 
 
 @login_required
 def home_view(request):
-    denuncias_usuario = []
+    rol_usuario = getattr(request.user, "rol", None)
 
-    if getattr(request.user, "rol", None) == Usuario.Roles.CIUDADANO:
-        denuncias_usuario = (
-            Denuncia.objects.filter(usuario=request.user)
-            .select_related("usuario")
-            .order_by("-fecha_creacion")
-        )
-        return render(
-            request,
-            "home_ciudadano.html",
-            {"denuncias": denuncias_usuario},
-        )
+    if rol_usuario != Usuario.Roles.CIUDADANO:
+        return redirect("panel_fiscalizador_activos")
 
-    return render(request, "home.html", {"denuncias": denuncias_usuario})
+    denuncias_usuario = (
+        Denuncia.objects.filter(usuario=request.user)
+        .select_related("usuario")
+        .order_by("-fecha_creacion")
+    )
+
+    return render(
+        request,
+        "home_ciudadano.html",
+        {"denuncias": denuncias_usuario},
+    )
 
 
 # ✅ LOGOUT (HTML)
+@login_required
 def logout_view(request):
     logout(request)
     return redirect("login_django")
