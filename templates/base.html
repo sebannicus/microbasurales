@@ -168,7 +168,7 @@
 
                         {% if user.is_authenticated and user.es_funcionario_municipal %}
                         <li class="nav-item">
-                            <a class="nav-link {% if request.path|startswith:"/panel/denuncias/" %}active{% endif %}" href="{% url 'panel_denuncias' %}">Panel de denuncias</a>
+                            <a class="nav-link {% if '/panel/denuncias/' in request.path %}active{% endif %}" href="{% url 'panel_denuncias' %}">Panel de denuncias</a>
                         </li>
                         {% endif %}
 
