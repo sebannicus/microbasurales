@@ -162,7 +162,7 @@ class DenunciaAdminListView(generics.ListAPIView):
         if fecha_hasta:
             queryset = queryset.filter(fecha_creacion__date__lte=fecha_hasta)
 
-        return queryset
+        return queryset.order_by("fecha_creacion")
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

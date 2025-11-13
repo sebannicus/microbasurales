@@ -21,6 +21,28 @@
         sinDenunciasRow.remove();
     }
 
+    const listaEnProceso = document.getElementById("denuncias-en-proceso-list");
+    const sinEnProcesoElemento = document.getElementById("sin-denuncias-en-proceso");
+    const contadorEnProceso = document.getElementById("contador-en-proceso");
+    const sinEnProcesoTemplate = sinEnProcesoElemento
+        ? sinEnProcesoElemento.cloneNode(true)
+        : null;
+
+    if (sinEnProcesoElemento) {
+        sinEnProcesoElemento.remove();
+    }
+
+    const listaResueltas = document.getElementById("denuncias-resueltas-list");
+    const sinResueltasElemento = document.getElementById("sin-denuncias-resueltas");
+    const contadorResueltas = document.getElementById("contador-resueltas");
+    const sinResueltasTemplate = sinResueltasElemento
+        ? sinResueltasElemento.cloneNode(true)
+        : null;
+
+    if (sinResueltasElemento) {
+        sinResueltasElemento.remove();
+    }
+
     const ESTADO_COLORES = {
         pendiente: "#d62828",
         en_proceso: "#f77f00",
@@ -62,6 +84,8 @@
 
             const bounds = [];
             const pendientes = [];
+            const enProceso = [];
+            const resueltas = [];
 
             while (paginaUrl) {
                 const respuesta = await fetch(paginaUrl.toString(), {
@@ -80,6 +104,10 @@
                     agregarMarcador(denuncia, bounds);
                     if (denuncia.estado === "pendiente") {
                         pendientes.push(denuncia);
+                    } else if (denuncia.estado === "en_proceso") {
+                        enProceso.push(denuncia);
+                    } else if (denuncia.estado === "resuelta") {
+                        resueltas.push(denuncia);
                     }
                 });
 
@@ -90,9 +118,46 @@
                 }
             }
 
+            const comparadorPorFecha = (a, b) => {
+                const fechaA = a.fecha_creacion ? new Date(a.fecha_creacion) : null;
+                const fechaB = b.fecha_creacion ? new Date(b.fecha_creacion) : null;
+
+                if (fechaA && fechaB) {
+                    return fechaA - fechaB;
+                }
+
+                if (fechaA) {
+                    return -1;
+                }
+
+                if (fechaB) {
+                    return 1;
+                }
+
+                return 0;
+            };
+
+            pendientes.sort(comparadorPorFecha);
+            enProceso.sort(comparadorPorFecha);
+            resueltas.sort(comparadorPorFecha);
+
             ajustarMapa(bounds);
             actualizarMarcaDeTiempo();
             actualizarTablaPendientes(pendientes);
+            actualizarResumenEstado(
+                enProceso,
+                listaEnProceso,
+                sinEnProcesoTemplate,
+                contadorEnProceso,
+                { mostrarEstado: false }
+            );
+            actualizarResumenEstado(
+                resueltas,
+                listaResueltas,
+                sinResueltasTemplate,
+                contadorResueltas,
+                { mostrarEstado: true }
+            );
         } catch (error) {
             console.error(error);
             mostrarMensajeGlobal(
@@ -100,6 +165,18 @@
                 "danger"
             );
             actualizarTablaPendientes([]);
+            actualizarResumenEstado(
+                [],
+                listaEnProceso,
+                sinEnProcesoTemplate,
+                contadorEnProceso
+            );
+            actualizarResumenEstado(
+                [],
+                listaResueltas,
+                sinResueltasTemplate,
+                contadorResueltas
+            );
         }
     }
 
@@ -250,6 +327,63 @@
         return fila;
     }
 
+    function crearResumenItem(denuncia, { mostrarEstado = false } = {}) {
+        const item = document.createElement("div");
+        item.className =
+            "list-group-item py-3 gap-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between";
+        item.dataset.denunciaId = String(denuncia.id);
+
+        const info = document.createElement("div");
+        info.className = "flex-grow-1";
+
+        const encabezado = document.createElement("div");
+        encabezado.className = "fw-semibold";
+        const fechaFormateada = formatearFecha(denuncia.fecha_creacion);
+        const zona = denuncia.zona ? ` · ${denuncia.zona}` : "";
+        encabezado.textContent = `#${denuncia.id} · ${fechaFormateada}${zona}`;
+
+        const descripcion = document.createElement("div");
+        descripcion.className = "text-muted small";
+        descripcion.textContent = resumirTexto(denuncia.descripcion);
+
+        info.appendChild(encabezado);
+        info.appendChild(descripcion);
+
+        if (mostrarEstado) {
+            const estadoLabel = document.createElement("div");
+            estadoLabel.className = "estado-label text-muted";
+            estadoLabel.textContent = ESTADO_LABELS[denuncia.estado] || denuncia.estado;
+            info.appendChild(estadoLabel);
+        }
+
+        const acciones = document.createElement("div");
+        acciones.className = "acciones";
+
+        const btnVer = document.createElement("button");
+        btnVer.type = "button";
+        btnVer.className = "btn btn-outline-secondary btn-sm";
+        btnVer.textContent = "Ver en mapa";
+        btnVer.addEventListener("click", () => {
+            centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: false });
+        });
+
+        const btnEditar = document.createElement("button");
+        btnEditar.type = "button";
+        btnEditar.className = "btn btn-background btn-sm";
+        btnEditar.textContent = "Editar";
+        btnEditar.addEventListener("click", () => {
+            centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: true });
+        });
+
+        acciones.appendChild(btnVer);
+        acciones.appendChild(btnEditar);
+
+        item.appendChild(info);
+        item.appendChild(acciones);
+
+        return item;
+    }
+
     function centrarDenunciaEnMapa(denunciaId, { enfocarFormulario = false } = {}) {
         const marker = marcadoresPorId.get(Number(denunciaId));
 
@@ -282,6 +416,37 @@
                     primerCampo.focus();
                 }
             }, 300);
+        }
+    }
+
+    function actualizarResumenEstado(
+        denuncias,
+        contenedor,
+        plantillaVacia,
+        contadorElemento,
+        opciones = {}
+    ) {
+        if (!contenedor) {
+            return;
+        }
+
+        contenedor.innerHTML = "";
+
+        if (!denuncias.length) {
+            if (plantillaVacia) {
+                const vacio = plantillaVacia.cloneNode(true);
+                vacio.id = "";
+                contenedor.appendChild(vacio);
+            }
+        } else {
+            denuncias.forEach((denuncia) => {
+                contenedor.appendChild(crearResumenItem(denuncia, opciones));
+            });
+        }
+
+        if (contadorElemento) {
+            const total = denuncias.length;
+            contadorElemento.textContent = `${total} ${total === 1 ? "caso" : "casos"}`;
         }
     }
 

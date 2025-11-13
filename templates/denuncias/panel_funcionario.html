@@ -3,8 +3,7 @@
 
 {% block extra_head %}
     {{ block.super }}
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-sA+z9YwT6U5x3Xn2zWx53A0RduCMsZ71/jt7sJm2yEw=" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <style>
         #mapa-denuncias {
             height: 70vh;
@@ -38,6 +37,31 @@
 
         .pendientes-card .btn-action {
             min-width: 6rem;
+        }
+
+        .estado-summary-card .list-group-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .estado-summary-card .list-group-item {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+        }
+
+        .estado-summary-card .estado-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .estado-summary-card .acciones {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
         }
     </style>
 {% endblock extra_head %}
@@ -132,12 +156,45 @@
             </div>
         </div>
     </section>
+
+    <section class="estado-summary-card mt-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+                <div>
+                    <h5 class="mb-0">Denuncias en proceso</h5>
+                    <small class="text-muted">Casos que se encuentran actualmente en gestión.</small>
+                </div>
+                <div class="text-muted small mt-2 mt-md-0" id="contador-en-proceso">0 casos</div>
+            </div>
+            <div class="list-group list-group-flush" id="denuncias-en-proceso-list">
+                <div class="list-group-item text-muted py-3" id="sin-denuncias-en-proceso">
+                    No hay denuncias en proceso para mostrar.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="estado-summary-card mt-4 mb-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+                <div>
+                    <h5 class="mb-0">Denuncias resueltas</h5>
+                    <small class="text-muted">Casos que han sido marcados como resueltos.</small>
+                </div>
+                <div class="text-muted small mt-2 mt-md-0" id="contador-resueltas">0 casos</div>
+            </div>
+            <div class="list-group list-group-flush" id="denuncias-resueltas-list">
+                <div class="list-group-item text-muted py-3" id="sin-denuncias-resueltas">
+                    No hay denuncias resueltas para mostrar.
+                </div>
+            </div>
+        </div>
+    </section>
 </div>
 {% endblock contenido %}
 
 {% block extra_scripts %}
     {{ block.super }}
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            integrity="sha256-SmSRN8fEVIz4xXkS7Fv9HGN0wQxkYt3XIanmrF3p3z0=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="{% static 'js/panel_funcionario.js' %}"></script>
 {% endblock extra_scripts %}
