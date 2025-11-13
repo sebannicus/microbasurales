@@ -1,8 +1,14 @@
-from django.contrib.auth.views import LogoutView
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from .views import RegistroUsuarioView, home_view, login_view, me_view, register_view
+from .views import (
+    RegistroUsuarioView,
+    LogoutRedirectView,
+    home_view,
+    login_view,
+    me_view,
+    register_view,
+)
 
 
 urlpatterns = [
@@ -19,7 +25,7 @@ urlpatterns = [
     # REFRESH JWT
     path('refresh/', TokenRefreshView.as_view(), name='refresh'),
 
-    path('logout/', LogoutView.as_view(next_page='login_django'), name='logout'),
+    path('logout/', LogoutRedirectView.as_view(), name='logout'),
 
 
     path('home/', home_view, name="home"),
