@@ -17,6 +17,9 @@
     const contadorPendientes = document.getElementById("contador-pendientes");
     const sinDenunciasTemplate = sinDenunciasRow ? sinDenunciasRow.cloneNode(true) : null;
 
+    const estadoTabs = document.querySelectorAll(".estado-tab");
+    const estadoPaneles = document.querySelectorAll(".estado-panel");
+
     if (sinDenunciasRow) {
         sinDenunciasRow.remove();
     }
@@ -54,6 +57,42 @@
         en_proceso: "En gestión",
         resuelta: "Resuelto",
     };
+
+    function activarTab(estadoObjetivo) {
+        if (!estadoObjetivo) {
+            estadoObjetivo = "pendiente";
+        }
+
+        const estadoExiste = Array.from(estadoTabs).some(
+            (tab) => tab.dataset.estado === estadoObjetivo
+        );
+
+        const estadoActivo = estadoExiste ? estadoObjetivo : "pendiente";
+
+        estadoTabs.forEach((tab) => {
+            if (tab.dataset.estado === estadoActivo) {
+                tab.classList.add("active");
+            } else {
+                tab.classList.remove("active");
+            }
+        });
+
+        estadoPaneles.forEach((panel) => {
+            if (panel.dataset.estado === estadoActivo) {
+                panel.classList.remove("d-none");
+                panel.classList.add("active");
+            } else {
+                panel.classList.add("d-none");
+                panel.classList.remove("active");
+            }
+        });
+    }
+
+    estadoTabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+            activarTab(tab.dataset.estado);
+        });
+    });
 
     const map = L.map("mapa-denuncias", {
         scrollWheelZoom: true,
@@ -158,6 +197,7 @@
                 contadorResueltas,
                 { mostrarEstado: true }
             );
+            activarTab(filtros.estado);
         } catch (error) {
             console.error(error);
             mostrarMensajeGlobal(
@@ -266,10 +306,7 @@
             });
         }
 
-        if (contadorPendientes) {
-            const total = denuncias.length;
-            contadorPendientes.textContent = `${total} ${total === 1 ? "caso" : "casos"}`;
-        }
+        actualizarContador(contadorPendientes, denuncias.length);
     }
 
     function crearFilaPendiente(denuncia) {
@@ -444,10 +481,22 @@
             });
         }
 
-        if (contadorElemento) {
-            const total = denuncias.length;
-            contadorElemento.textContent = `${total} ${total === 1 ? "caso" : "casos"}`;
+        actualizarContador(contadorElemento, denuncias.length);
+    }
+
+    function actualizarContador(elemento, total) {
+        if (!elemento) {
+            return;
         }
+        elemento.textContent = `${total}`;
+        elemento.setAttribute(
+            "title",
+            `${total} ${total === 1 ? "caso" : "casos"}`
+        );
+        elemento.setAttribute(
+            "aria-label",
+            `${total} ${total === 1 ? "caso" : "casos"}`
+        );
     }
 
     function resumirTexto(texto) {
@@ -553,7 +602,8 @@
                 });
 
                 if (!respuesta.ok) {
-                    throw new Error("Error al actualizar la denuncia");
+                    const detalle = await extraerMensajeDeError(respuesta);
+                    throw new Error(detalle);
                 }
 
                 feedback.textContent = "Cambios guardados correctamente";
@@ -561,7 +611,8 @@
                 cargarDenuncias(filtrosActivos);
             } catch (error) {
                 console.error(error);
-                feedback.textContent = "No se pudieron guardar los cambios";
+                feedback.textContent =
+                    error.message || "No se pudieron guardar los cambios";
                 feedback.className = "feedback mt-2 text-danger";
             }
         });
@@ -583,4 +634,37 @@
     });
 
     cargarDenuncias();
+
+    async function extraerMensajeDeError(respuesta) {
+        const generico = "No se pudieron guardar los cambios";
+
+        try {
+            const data = await respuesta.clone().json();
+            if (!data) {
+                return generico;
+            }
+
+            if (typeof data === "string") {
+                return data;
+            }
+
+            if (data.detail) {
+                return data.detail;
+            }
+
+            const valores = Object.values(data)
+                .flat()
+                .map((item) =>
+                    typeof item === "string" ? item : JSON.stringify(item)
+                )
+                .filter(Boolean);
+            if (valores.length) {
+                return valores.join(" ");
+            }
+        } catch (error) {
+            console.warn("No fue posible interpretar el error", error);
+        }
+
+        return generico;
+    }
 })();
