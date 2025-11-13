@@ -3,9 +3,9 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .views import (
     RegistroUsuarioView,
-    LogoutRedirectView,
     home_view,
     login_view,
+    logout_view,
     me_view,
     register_view,
 )
@@ -25,7 +25,7 @@ urlpatterns = [
     # REFRESH JWT
     path('refresh/', TokenRefreshView.as_view(), name='refresh'),
 
-    path('logout/', LogoutRedirectView.as_view(), name='logout'),
+    path('logout/', logout_view, name='logout'),
 
 
     path('home/', home_view, name="home"),

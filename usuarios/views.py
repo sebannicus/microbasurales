@@ -1,7 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import LogoutView
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -122,15 +121,10 @@ def home_view(request):
     )
 
 
-# ✅ LOGOUT (HTML)
-class LogoutRedirectView(LogoutView):
-    """Versión basada en clases que redirige al formulario de login HTML."""
-
-    next_page = "login_django"
-
-
 @login_required
 def logout_view(request):
+    """Cierra la sesión y redirige al formulario de login HTML."""
+
     logout(request)
     return redirect("login_django")
 
