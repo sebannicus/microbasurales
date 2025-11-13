@@ -30,6 +30,10 @@
         z-index: -1;
     }
 
+    .login-container {
+        padding-bottom: 120px;
+    }
+
     .login-overlay {
         background: rgba(198, 40, 40, 0.7);
         position: fixed;
@@ -40,8 +44,31 @@
         z-index: -1;
     }
 
+    .login-header {
+        text-align: center;
+        color: #ffffff;
+        margin-top: 60px;
+        margin-bottom: 30px;
+    }
+
+    .login-header h1 {
+        font-size: 3rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        text-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+    }
+
+    .login-header p {
+        font-size: 1.25rem;
+        max-width: 700px;
+        margin: 18px auto 0 auto;
+        line-height: 1.6;
+        font-weight: 500;
+    }
+
     .login-card {
-        margin-top: 90px;
+        margin-top: 30px;
     }
 
     .login-box {
@@ -77,13 +104,32 @@
         background: #650000;
     }
 
+    @media (max-width: 576px) {
+        .login-header {
+            margin-top: 40px;
+        }
+
+        .login-header h1 {
+            font-size: 2.2rem;
+        }
+
+        .login-header p {
+            font-size: 1.05rem;
+        }
+    }
+
 </style>
 
 <!-- Fondo -->
 <div class="login-background"></div>
 <div class="login-overlay"></div>
 
-<div class="container">
+<div class="container login-container">
+
+    <div class="login-header">
+        <h1>Tu Barrio Limpio</h1>
+        <p>Únete a Tu Barrio Limpio y ayuda a reportar, monitorear y resolver los focos de microbasurales en tu comunidad.</p>
+    </div>
 
     <div class="row justify-content-center">
         <div class="col-md-5 login-card">
@@ -91,7 +137,7 @@
             <div class="login-box">
 
                 <h2>Iniciar Sesión</h2>
-                <p class="mb-4">Únete a Tu Barrio Limpio y ayuda a reportar, monitorear y resolver los focos de microbasurales en tu comunidad.</p>
+                <p class="mb-4">Accede con tus credenciales para continuar colaborando con tu comunidad.</p>
 
                 <form method="POST" novalidate>
                     {% csrf_token %}
@@ -126,5 +172,9 @@
     </div>
 
 </div>
+
+<footer class="text-center text-white-50 py-3" style="position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(4px);">
+    <small>© {% now "Y" %} Tu Barrio Limpio. Todos los derechos reservados. | <a href="mailto:contacto@tubarriolimpio.cl" class="text-white text-decoration-underline">contacto@tubarriolimpio.cl</a> | <a href="#" class="text-white text-decoration-underline">Aviso legal</a> | <a href="#" class="text-white text-decoration-underline">Política de privacidad</a></small>
+</footer>
 
 {% endblock %}
