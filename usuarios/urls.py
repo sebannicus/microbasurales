@@ -1,18 +1,20 @@
-from django.contrib.auth.views import LogoutView
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-
-from .views import RegistroUsuarioView, login_view
-
-
-from .views import RegistroUsuarioView, login_view, home_view, me_view
-from django.contrib.auth.views import LogoutView
+from .views import (
+    RegistroUsuarioView,
+    home_view,
+    login_view,
+    logout_view,
+    me_view,
+    register_view,
+)
 
 
 urlpatterns = [
     # LOGIN HTML (plantilla roja)
     path('login-django/', login_view, name='login_django'),
+    path('registrarse/', register_view, name='register'),
 
     # REGISTRO API
     path('registro/', RegistroUsuarioView.as_view(), name='registro'),
@@ -23,7 +25,7 @@ urlpatterns = [
     # REFRESH JWT
     path('refresh/', TokenRefreshView.as_view(), name='refresh'),
 
-    path('logout/', LogoutView.as_view(next_page='login_django'), name='logout'),
+    path('logout/', logout_view, name='logout'),
 
 
     path('home/', home_view, name="home"),

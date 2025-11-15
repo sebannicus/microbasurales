@@ -19,6 +19,27 @@ class Denuncia(models.Model):
 
     descripcion = models.TextField()
 
+    direccion = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Dirección referencial del evento reportado.",
+    )
+
+    zona = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Sector o zona operativa asignada por el municipio.",
+    )
+
+    # Dirección legible seleccionada por la persona denunciante
+    direccion_textual = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Dirección descriptiva asociada a la ubicación de la denuncia.",
+    )
+
     # Ubicación sin GIS, usando latitud y longitud
     latitud = models.FloatField()
     longitud = models.FloatField()
@@ -30,6 +51,13 @@ class Denuncia(models.Model):
         default=EstadoDenuncia.PENDIENTE
     )
 
+    cuadrilla_asignada = models.CharField(
+        max_length=120,
+        blank=True,
+        default="",
+        help_text="Equipo responsable de la gestión de la denuncia.",
+    )
+
     # Fecha
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
@@ -39,6 +67,9 @@ class Denuncia(models.Model):
         blank=True,
         null=True
     )
+
+    class Meta:
+        ordering = ("-fecha_creacion",)
 
     def __str__(self):
         return f"Denuncia de {self.usuario} ({self.estado})"

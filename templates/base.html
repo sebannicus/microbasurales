@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-{% load static %}
+{% load static request_extras %}
 <html lang="es">
 
 <head>
@@ -20,6 +20,8 @@
     <script>
         mermaid.initialize({ startOnLoad: true, theme: "dark" });
     </script>
+
+    {% block extra_head %}{% endblock extra_head %}
 
     <!-- Estilos globales -->
     <style>
@@ -82,10 +84,15 @@
 
         .contenido {
             max-width: 1100px;
+            width: 100%;
             background-color: #ffffff;
             padding: 18px;
             border-radius: 6px;
             box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .contenido.contenido-fluid {
+            max-width: none;
         }
 
         /* BOTONES */
@@ -164,6 +171,12 @@
                             <a class="nav-link" href="#">Herramientas</a>
                         </li>
 
+                        {% if user.is_authenticated and user.puede_gestionar_denuncias %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path|is_panel_denuncias %}active{% endif %}" href="{% url 'panel_denuncias' %}">Panel de denuncias</a>
+                        </li>
+                        {% endif %}
+
                         <li class="nav-item">
                             <a class="nav-link text-danger" href="{% url 'logout' %}">
                                 Cerrar Sesión
@@ -191,6 +204,12 @@
         <a href="#" data-bs-toggle="tooltip" title="Herramientas">
             <i class='bx bx-wrench'></i>
         </a>
+
+        {% if user.is_authenticated and user.puede_gestionar_denuncias %}
+        <a href="{% url 'panel_denuncias' %}" class="{% if request.path|is_panel_denuncias %}active{% endif %}" data-bs-toggle="tooltip" title="Panel de denuncias">
+            <i class='bx bx-map-alt'></i>
+        </a>
+        {% endif %}
 
         <a href="{% url 'logout' %}" data-bs-toggle="tooltip" title="Cerrar Sesión">
             <i class='bx bx-log-out'></i>
@@ -250,6 +269,8 @@
             });
         });
     </script>
+
+    {% block extra_scripts %}{% endblock extra_scripts %}
 
 
 </body>

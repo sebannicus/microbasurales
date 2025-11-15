@@ -62,6 +62,26 @@
         border-radius: 6px;
     }
 
+    .imagen-preview {
+        max-height: 200px;
+        border-radius: 12px;
+        object-fit: cover;
+    }
+
+    .detalle-imagen-wrapper {
+        min-height: 260px;
+        background-color: #f8f9fa;
+    }
+
+    .object-fit-cover {
+        object-fit: cover;
+    }
+
+    .direccion-ayuda {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+
     .alert-placeholder {
         min-height: 58px;
     }
@@ -102,9 +122,10 @@
                         <tr>
                             <th>Fecha</th>
                             <th>Descripción</th>
-                            <th>Ubicación</th>
+                            <th>Dirección</th>
                             <th>Estado</th>
                             <th>Foto</th>
+                            <th class="text-end">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tablaDenunciasBody"></tbody>
@@ -132,12 +153,25 @@
                             <label for="descripcion" class="form-label">Descripción del problema</label>
                             <textarea class="form-control" id="descripcion" name="descripcion" rows="5" placeholder="Describe qué observaste" required></textarea>
 
-                            <label for="imagen" class="form-label mt-3">Fotografía (opcional)</label>
-                            <input class="form-control" type="file" id="imagen" name="imagen" accept="image/*">
+                            <label for="imagen" class="form-label mt-3">Fotografía del microbasural</label>
+                            <input class="form-control" type="file" id="imagen" name="imagen" accept="image/*" required>
+                            <div id="imagenPreviewWrapper" class="mt-3 d-none">
+                                <p class="direccion-ayuda mb-1">Vista previa de la imagen seleccionada</p>
+                                <img id="imagenPreview" class="imagen-preview w-100 border" alt="Vista previa de la denuncia">
+                            </div>
                         </div>
                         <div class="col-lg-6">
-                            <label class="form-label">Selecciona la ubicación en el mapa</label>
-                            <div id="map" class="denuncia-map"></div>
+                            <label class="form-label" for="buscarDireccion">Busca o ajusta la ubicación</label>
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control" id="buscarDireccion" placeholder="Buscar dirección (ej: Calle 123, Comuna)">
+                                <button class="btn btn-outline-secondary" type="button" id="btnBuscarDireccion">
+                                    <i class='bx bx-search-alt-2'></i>
+                                </button>
+                            </div>
+                            <p class="direccion-ayuda mb-2">Puedes escribir una dirección o mover el pin en el mapa para ajustarla.</p>
+                            <label for="direccion_textual" class="form-label">Dirección seleccionada</label>
+                            <input type="text" class="form-control" id="direccion_textual" name="direccion_textual" placeholder="Selecciona un punto en el mapa" required>
+                            <div id="map" class="denuncia-map mt-3"></div>
                             <div class="row g-2 mt-2">
                                 <div class="col-md-6">
                                     <label for="latitud" class="form-label">Latitud</label>
@@ -147,16 +181,109 @@
                                     <label for="longitud" class="form-label">Longitud</label>
                                     <input type="text" class="form-control" id="longitud" name="longitud" readonly required>
                                 </div>
+                                <div class="col-12">
+                                    <button class="btn btn-outline-danger mt-2 w-100" type="button" id="btnUbicacion">
+                                        <i class='bx bx-current-location me-1'></i> Usar mi ubicación actual
+                                    </button>
+                                </div>
                             </div>
-                            <button class="btn btn-outline-danger mt-3 w-100" type="button" id="btnUbicacion">
-                                <i class='bx bx-current-location me-1'></i> Usar mi ubicación actual
-                            </button>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-denuncia">Guardar denuncia</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDetalleDenuncia" tabindex="-1" aria-labelledby="modalDetalleDenunciaLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#7f0000; color:#fff;">
+                <h5 class="modal-title" id="modalDetalleDenunciaLabel">Detalle de la denuncia</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <p class="mb-1 text-muted">Descripción</p>
+                        <p class="fw-semibold" id="detalleDescripcion"></p>
+                        <p class="mb-1 text-muted">Dirección</p>
+                        <p class="fw-semibold" id="detalleDireccion"></p>
+                        <p class="mb-1 text-muted">Estado</p>
+                        <span class="badge bg-light text-danger" id="detalleEstado"></span>
+                        <p class="mt-3 mb-1 text-muted">Coordenadas</p>
+                        <p class="mb-0" id="detalleCoordenadas"></p>
+                        <p class="mt-3 mb-1 text-muted">Registrada el</p>
+                        <p class="mb-0" id="detalleFecha"></p>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="border rounded-3 overflow-hidden shadow-sm detalle-imagen-wrapper"
+                            id="detalleImagenWrapper">
+                            <img id="detalleImagen" src="" alt="Imagen de la denuncia"
+                                class="w-100 h-100 object-fit-cover">
+                        </div>
+                        <p class="text-muted small mt-2 d-none" id="detalleSinImagen">Esta denuncia no tiene una fotografía adjunta.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditarDenuncia" tabindex="-1" aria-labelledby="modalEditarDenunciaLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#b71c1c; color:#fff;">
+                <h5 class="modal-title" id="modalEditarDenunciaLabel">Editar denuncia</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form id="formEditarDenuncia" enctype="multipart/form-data">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <input type="hidden" name="denuncia_id" id="editarDenunciaId">
+                    <div class="row g-4">
+                        <div class="col-lg-6">
+                            <label for="editarDescripcion" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="editarDescripcion" name="descripcion" rows="5"
+                                required></textarea>
+
+                            <label for="editarImagen" class="form-label mt-3">Actualizar fotografía</label>
+                            <input class="form-control" type="file" id="editarImagen" name="imagen" accept="image/*">
+                            <div id="editarImagenActualWrapper" class="mt-3">
+                                <p class="direccion-ayuda mb-1">Imagen actual</p>
+                                <img id="editarImagenActual" class="imagen-preview w-100 border"
+                                    alt="Imagen actual de la denuncia">
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <label for="editarDireccion" class="form-label">Dirección de referencia</label>
+                            <input type="text" class="form-control" id="editarDireccion" name="direccion_textual" required>
+
+                            <label for="editarLatitud" class="form-label mt-3">Latitud</label>
+                            <input type="text" class="form-control" id="editarLatitud" name="latitud" readonly>
+
+                            <label for="editarLongitud" class="form-label mt-3">Longitud</label>
+                            <input type="text" class="form-control" id="editarLongitud" name="longitud" readonly>
+
+                            <p class="direccion-ayuda mt-3 mb-0">
+                                Si necesitas ajustar la ubicación exacta, elimina la denuncia y vuelve a crearla con la
+                                información correcta.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-denuncia">Guardar cambios</button>
                 </div>
             </form>
         </div>
@@ -173,80 +300,289 @@
         const formDenuncia = document.getElementById('denunciaForm');
         const alertPlaceholder = document.getElementById('alertPlaceholder');
         const tablaDenunciasBody = document.getElementById('tablaDenunciasBody');
-        const modalDenuncia = document.getElementById('modalDenuncia');
-        const modal = modalDenuncia && window.bootstrap
-            ? new bootstrap.Modal(modalDenuncia)
+        const modalDenunciaElement = document.getElementById('modalDenuncia');
+        const modalDenuncia = modalDenunciaElement && window.bootstrap
+            ? new bootstrap.Modal(modalDenunciaElement)
+            : null;
+        const modalDetalleElement = document.getElementById('modalDetalleDenuncia');
+        const modalDetalle = modalDetalleElement && window.bootstrap
+            ? new bootstrap.Modal(modalDetalleElement)
+            : null;
+        const modalEditarElement = document.getElementById('modalEditarDenuncia');
+        const modalEditar = modalEditarElement && window.bootstrap
+            ? new bootstrap.Modal(modalEditarElement)
             : null;
         const totalDenunciasBadge = document.getElementById('totalDenuncias');
         const sinDenunciasMensaje = document.getElementById('sinDenuncias');
         const latitudInput = document.getElementById('latitud');
         const longitudInput = document.getElementById('longitud');
+        const direccionInput = document.getElementById('direccion_textual');
+        const buscarDireccionInput = document.getElementById('buscarDireccion');
+        const btnBuscarDireccion = document.getElementById('btnBuscarDireccion');
+        const btnUbicacion = document.getElementById('btnUbicacion');
+        const imagenInput = document.getElementById('imagen');
+        const imagenPreviewWrapper = document.getElementById('imagenPreviewWrapper');
+        const imagenPreview = document.getElementById('imagenPreview');
+
+        const detalleDescripcion = document.getElementById('detalleDescripcion');
+        const detalleDireccion = document.getElementById('detalleDireccion');
+        const detalleEstado = document.getElementById('detalleEstado');
+        const detalleCoordenadas = document.getElementById('detalleCoordenadas');
+        const detalleFecha = document.getElementById('detalleFecha');
+        const detalleImagen = document.getElementById('detalleImagen');
+        const detalleImagenWrapper = document.getElementById('detalleImagenWrapper');
+        const detalleSinImagen = document.getElementById('detalleSinImagen');
+
+        const formEditarDenuncia = document.getElementById('formEditarDenuncia');
+        const editarDescripcionInput = document.getElementById('editarDescripcion');
+        const editarDireccionInput = document.getElementById('editarDireccion');
+        const editarLatitudInput = document.getElementById('editarLatitud');
+        const editarLongitudInput = document.getElementById('editarLongitud');
+        const editarImagenInput = document.getElementById('editarImagen');
+        const editarImagenActual = document.getElementById('editarImagenActual');
+        const editarImagenActualWrapper = document.getElementById('editarImagenActualWrapper');
+        const editarDenunciaIdInput = document.getElementById('editarDenunciaId');
+
         const ESTADOS_LABEL = {
             pendiente: 'Pendiente',
             en_proceso: 'En proceso',
             resuelta: 'Resuelta',
         };
 
+        const denunciasCache = new Map();
+
         const map = L.map('map').setView([-33.4489, -70.6693], 12);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        if (modalDenuncia) {
-            modalDenuncia.addEventListener('shown.bs.modal', () => {
-                setTimeout(() => {
-                    map.invalidateSize();
-                }, 200);
+        let marker = null;
+
+        function limpiarPreviewImagen() {
+            if (imagenPreviewWrapper) {
+                imagenPreviewWrapper.classList.add('d-none');
+            }
+            if (imagenPreview) {
+                imagenPreview.removeAttribute('src');
+            }
+        }
+
+        if (imagenInput) {
+            imagenInput.addEventListener('change', () => {
+                const archivo = imagenInput.files && imagenInput.files[0];
+                if (!archivo) {
+                    limpiarPreviewImagen();
+                    return;
+                }
+                const lector = new FileReader();
+                lector.onload = (evento) => {
+                    const resultado = evento && evento.target ? evento.target.result : '';
+                    if (imagenPreview) {
+                        imagenPreview.src = resultado || '';
+                    }
+                    if (imagenPreviewWrapper) {
+                        imagenPreviewWrapper.classList.remove('d-none');
+                    }
+                };
+                lector.readAsDataURL(archivo);
             });
         }
 
-        let marker = null;
+        function formatearDireccionDesdeReverse(data) {
+            if (!data) {
+                return '';
+            }
+            const address = data.address || {};
+            const calle = address.road || address.pedestrian || address.residential || address.path || address.cycleway;
+            const numero = address.house_number;
+            const comuna = address.city || address.town || address.village || address.municipality || address.county || address.suburb || address.neighbourhood;
+            const segmentos = [];
+            if (calle) {
+                segmentos.push(numero ? `${calle} ${numero}` : calle);
+            }
+            if (comuna) {
+                segmentos.push(comuna);
+            }
+            if (address.state) {
+                segmentos.push(address.state);
+            }
+            if (!segmentos.length && typeof data.display_name === 'string') {
+                return data.display_name;
+            }
+            return segmentos.join(', ');
+        }
 
-        function actualizarMarcador(lat, lng) {
-            if (!lat || !lng) {
+        function actualizarCamposCoordenadas(latitud, longitud) {
+            if (latitudInput) {
+                latitudInput.value = latitud.toFixed(6);
+            }
+            if (longitudInput) {
+                longitudInput.value = longitud.toFixed(6);
+            }
+        }
+
+        async function actualizarDireccionDesdeCoordenadas(latitud, longitud) {
+            if (!direccionInput) {
                 return;
             }
-            const latitud = parseFloat(lat);
-            const longitud = parseFloat(lng);
-            if (Number.isNaN(latitud) || Number.isNaN(longitud)) {
+            try {
+                const respuesta = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitud}&lon=${longitud}&accept-language=es&addressdetails=1`);
+                if (!respuesta.ok) {
+                    throw new Error('No se pudo obtener la dirección.');
+                }
+                const data = await respuesta.json();
+                const direccionFormateada = formatearDireccionDesdeReverse(data);
+                direccionInput.value = direccionFormateada || data.display_name || '';
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function posicionarMarcador(lat, lng, { centrar = true, obtenerDireccion = true } = {}) {
+            const latitud = Number.parseFloat(lat);
+            const longitud = Number.parseFloat(lng);
+            if (!Number.isFinite(latitud) || !Number.isFinite(longitud)) {
                 return;
             }
             if (marker) {
                 marker.setLatLng([latitud, longitud]);
             } else {
-                marker = L.marker([latitud, longitud]).addTo(map);
+                marker = L.marker([latitud, longitud], { draggable: true }).addTo(map);
+                marker.on('dragend', (evento) => {
+                    const nuevaPosicion = evento.target.getLatLng();
+                    posicionarMarcador(nuevaPosicion.lat, nuevaPosicion.lng, { centrar: false, obtenerDireccion: true });
+                });
             }
-            map.setView([latitud, longitud], 15);
-            if (latitudInput && longitudInput) {
-                latitudInput.value = latitud.toFixed(6);
-                longitudInput.value = longitud.toFixed(6);
+            if (centrar) {
+                const zoomActual = map.getZoom();
+                map.setView([latitud, longitud], zoomActual < 15 ? 15 : zoomActual);
+            }
+            actualizarCamposCoordenadas(latitud, longitud);
+            if (obtenerDireccion) {
+                actualizarDireccionDesdeCoordenadas(latitud, longitud);
             }
         }
 
-        map.on('click', function (event) {
-            actualizarMarcador(event.latlng.lat, event.latlng.lng);
+        map.on('click', (event) => {
+            posicionarMarcador(event.latlng.lat, event.latlng.lng, { obtenerDireccion: true });
         });
 
-        const btnUbicacion = document.getElementById('btnUbicacion');
-        if (btnUbicacion) {
-            btnUbicacion.addEventListener('click', function () {
-                if (!navigator.geolocation) {
+        function solicitarGeolocalizacionAutomatica({ mostrarMensajes = false } = {}) {
+            if (!navigator.geolocation) {
+                if (mostrarMensajes) {
                     mostrarAlerta('Tu navegador no soporta geolocalización.', 'warning');
+                }
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                (posicion) => {
+                    const { latitude, longitude } = posicion.coords;
+                    posicionarMarcador(latitude, longitude, { obtenerDireccion: true });
+                },
+                () => {
+                    if (mostrarMensajes) {
+                        mostrarAlerta('No pudimos obtener tu ubicación automáticamente. Ajusta el pin manualmente.', 'warning');
+                    }
+                }
+            );
+        }
+
+        if (modalDenunciaElement) {
+            modalDenunciaElement.addEventListener('shown.bs.modal', () => {
+                setTimeout(() => {
+                    map.invalidateSize();
+                    const sinLatitud = !latitudInput || !latitudInput.value;
+                    const sinLongitud = !longitudInput || !longitudInput.value;
+                    if (sinLatitud || sinLongitud) {
+                        solicitarGeolocalizacionAutomatica();
+                    }
+                }, 200);
+            });
+            modalDenunciaElement.addEventListener('hidden.bs.modal', () => {
+                if (formDenuncia) {
+                    formDenuncia.reset();
+                }
+                if (direccionInput) {
+                    direccionInput.value = '';
+                }
+                if (buscarDireccionInput) {
+                    buscarDireccionInput.value = '';
+                }
+                if (latitudInput) {
+                    latitudInput.value = '';
+                }
+                if (longitudInput) {
+                    longitudInput.value = '';
+                }
+                if (marker) {
+                    map.removeLayer(marker);
+                    marker = null;
+                }
+                limpiarPreviewImagen();
+            });
+        }
+
+        if (btnUbicacion) {
+            btnUbicacion.addEventListener('click', () => {
+                solicitarGeolocalizacionAutomatica({ mostrarMensajes: true });
+            });
+        }
+
+        async function buscarDireccionPorTexto(texto) {
+            const termino = texto.trim();
+            if (!termino) {
+                mostrarAlerta('Ingresa una dirección para realizar la búsqueda.', 'warning');
+                return;
+            }
+            try {
+                const respuesta = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&q=${encodeURIComponent(termino)}`);
+                if (!respuesta.ok) {
+                    throw new Error('No se pudo buscar la dirección.');
+                }
+                const resultados = await respuesta.json();
+                if (!Array.isArray(resultados) || resultados.length === 0) {
+                    mostrarAlerta('No encontramos coincidencias para esa dirección. Intenta con otra referencia.', 'warning');
                     return;
                 }
-                navigator.geolocation.getCurrentPosition(
-                    function (posicion) {
-                        const { latitude, longitude } = posicion.coords;
-                        actualizarMarcador(latitude, longitude);
-                    },
-                    function () {
-                        mostrarAlerta('No pudimos obtener tu ubicación. Intenta seleccionarla manualmente.', 'warning');
-                    }
-                );
+                const resultado = resultados[0];
+                const latitud = Number.parseFloat(resultado.lat);
+                const longitud = Number.parseFloat(resultado.lon);
+                posicionarMarcador(latitud, longitud, { obtenerDireccion: false });
+                if (direccionInput) {
+                    const direccionFormateada = formatearDireccionDesdeReverse({
+                        address: resultado.address,
+                        display_name: resultado.display_name,
+                    });
+                    direccionInput.value = direccionFormateada || resultado.display_name || termino;
+                }
+                actualizarDireccionDesdeCoordenadas(latitud, longitud);
+            } catch (error) {
+                console.error(error);
+                mostrarAlerta('Ocurrió un problema al buscar la dirección. Intenta nuevamente.', 'danger');
+            }
+        }
+
+        if (btnBuscarDireccion) {
+            btnBuscarDireccion.addEventListener('click', () => {
+                if (buscarDireccionInput) {
+                    buscarDireccionPorTexto(buscarDireccionInput.value || '');
+                }
+            });
+        }
+
+        if (buscarDireccionInput) {
+            buscarDireccionInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    buscarDireccionPorTexto(buscarDireccionInput.value || '');
+                }
             });
         }
 
         function mostrarAlerta(mensaje, tipo = 'success') {
+            if (!alertPlaceholder) {
+                return;
+            }
             alertPlaceholder.innerHTML = `
                 <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
                     ${mensaje}
@@ -260,69 +596,269 @@
             if (denuncia.estado_display) {
                 return denuncia.estado_display;
             }
-            return ESTADOS_LABEL[denuncia.estado] || denuncia.estado;
+            return ESTADOS_LABEL[denuncia.estado] || denuncia.estado || 'Sin estado';
         }
 
-        function agregarDenunciaATabla(denuncia, { prepend = true } = {}) {
-            if (!tablaDenunciasBody) {
+        function formatearFecha(fechaISO) {
+            const fecha = fechaISO ? new Date(fechaISO) : null;
+            if (!fecha || Number.isNaN(fecha.getTime())) {
+                return '--';
+            }
+            return fecha.toLocaleString('es-CL');
+        }
+
+        function mostrarDetalleImagen(src) {
+            if (!detalleImagenWrapper || !detalleImagen || !detalleSinImagen) {
                 return;
             }
+            if (src) {
+                detalleImagenWrapper.classList.remove('d-none');
+                detalleSinImagen.classList.add('d-none');
+                detalleImagen.src = src;
+            } else {
+                detalleImagenWrapper.classList.add('d-none');
+                detalleSinImagen.classList.remove('d-none');
+                detalleImagen.removeAttribute('src');
+            }
+        }
+
+        function mostrarImagenActualEdicion(src) {
+            if (!editarImagenActualWrapper || !editarImagenActual) {
+                return;
+            }
+            if (src) {
+                editarImagenActualWrapper.classList.remove('d-none');
+                editarImagenActual.src = src;
+            } else {
+                editarImagenActualWrapper.classList.add('d-none');
+                editarImagenActual.removeAttribute('src');
+            }
+        }
+
+        function crearFilaDenuncia(denuncia) {
             const fila = document.createElement('tr');
-            fila.dataset.denunciaId = denuncia.id;
+            fila.dataset.denunciaId = String(denuncia.id);
+
+            const fechaTd = document.createElement('td');
+            fechaTd.textContent = formatearFecha(denuncia.fecha_creacion);
+            fila.appendChild(fechaTd);
+
+            const descripcionTd = document.createElement('td');
+            descripcionTd.textContent = denuncia.descripcion || 'Sin descripción';
+            fila.appendChild(descripcionTd);
+
+            const direccionTd = document.createElement('td');
+            const direccionPrincipal = document.createElement('strong');
+            direccionPrincipal.textContent = denuncia.direccion_textual || 'Sin dirección disponible';
+            direccionTd.appendChild(direccionPrincipal);
+            direccionTd.appendChild(document.createElement('br'));
+            const small = document.createElement('small');
             const latitud = Number.parseFloat(denuncia.latitud);
             const longitud = Number.parseFloat(denuncia.longitud);
             const latitudTexto = Number.isFinite(latitud) ? latitud.toFixed(6) : '--';
             const longitudTexto = Number.isFinite(longitud) ? longitud.toFixed(6) : '--';
-            fila.innerHTML = `
-                <td>${new Date(denuncia.fecha_creacion).toLocaleString('es-CL')}</td>
-                <td>${denuncia.descripcion}</td>
-                <td><small>Lat: ${latitudTexto}<br>Lng: ${longitudTexto}</small></td>
-                <td><span class="badge text-bg-light">${formatearEstado(denuncia)}</span></td>
-                <td>${denuncia.imagen ? `<img src="${denuncia.imagen}" alt="Foto denuncia">` : '<span class="text-muted">Sin imagen</span>'}</td>
-            `;
-            if (prepend) {
-                tablaDenunciasBody.prepend(fila);
+            const latSpan = document.createElement('span');
+            latSpan.textContent = `Lat: ${latitudTexto}`;
+            const br = document.createElement('br');
+            const lngSpan = document.createElement('span');
+            lngSpan.textContent = `Lng: ${longitudTexto}`;
+            small.appendChild(latSpan);
+            small.appendChild(br);
+            small.appendChild(lngSpan);
+            direccionTd.appendChild(small);
+            fila.appendChild(direccionTd);
+
+            const estadoTd = document.createElement('td');
+            const estadoBadge = document.createElement('span');
+            estadoBadge.className = 'badge text-bg-light';
+            estadoBadge.textContent = formatearEstado(denuncia);
+            estadoTd.appendChild(estadoBadge);
+            fila.appendChild(estadoTd);
+
+            const fotoTd = document.createElement('td');
+            if (denuncia.imagen) {
+                const imagen = document.createElement('img');
+                imagen.src = denuncia.imagen;
+                imagen.alt = 'Foto denuncia';
+                fotoTd.appendChild(imagen);
             } else {
-                tablaDenunciasBody.appendChild(fila);
+                const sinImagen = document.createElement('span');
+                sinImagen.className = 'text-muted';
+                sinImagen.textContent = 'Sin imagen';
+                fotoTd.appendChild(sinImagen);
             }
-            if (sinDenunciasMensaje) {
-                sinDenunciasMensaje.classList.add('d-none');
+            fila.appendChild(fotoTd);
+
+            const accionesTd = document.createElement('td');
+            accionesTd.classList.add('text-end');
+            const grupo = document.createElement('div');
+            grupo.className = 'btn-group btn-group-sm';
+            grupo.setAttribute('role', 'group');
+
+            const btnVer = document.createElement('button');
+            btnVer.type = 'button';
+            btnVer.className = 'btn btn-outline-danger btn-ver-denuncia';
+            btnVer.innerHTML = "<i class='bx bx-show-alt'></i> Ver";
+            btnVer.addEventListener('click', () => abrirModalDetalle(denuncia.id));
+
+            const btnEditar = document.createElement('button');
+            btnEditar.type = 'button';
+            btnEditar.className = 'btn btn-danger btn-editar-denuncia';
+            btnEditar.innerHTML = "<i class='bx bx-edit-alt'></i> Editar";
+            btnEditar.addEventListener('click', () => abrirModalEditar(denuncia.id));
+
+            grupo.appendChild(btnVer);
+            grupo.appendChild(btnEditar);
+            accionesTd.appendChild(grupo);
+            fila.appendChild(accionesTd);
+
+            return fila;
+        }
+
+        function actualizarTotales() {
+            if (!tablaDenunciasBody) {
+                return;
             }
+            const total = tablaDenunciasBody.querySelectorAll('tr').length;
             if (totalDenunciasBadge) {
-                const total = tablaDenunciasBody.querySelectorAll('tr').length;
                 totalDenunciasBadge.textContent = `${total} registro${total !== 1 ? 's' : ''}`;
             }
+            if (sinDenunciasMensaje) {
+                if (total === 0) {
+                    sinDenunciasMensaje.classList.remove('d-none');
+                } else {
+                    sinDenunciasMensaje.classList.add('d-none');
+                }
+            }
+        }
+
+        function agregarDenunciaATabla(denuncia, { prepend = true } = {}) {
+            if (!tablaDenunciasBody || !denuncia) {
+                return;
+            }
+            denunciasCache.set(Number(denuncia.id), denuncia);
+            const nuevaFila = crearFilaDenuncia(denuncia);
+            const filaExistente = tablaDenunciasBody.querySelector(`tr[data-denuncia-id="${denuncia.id}"]`);
+            if (filaExistente) {
+                tablaDenunciasBody.replaceChild(nuevaFila, filaExistente);
+            } else if (prepend) {
+                tablaDenunciasBody.prepend(nuevaFila);
+            } else {
+                tablaDenunciasBody.appendChild(nuevaFila);
+            }
+            actualizarTotales();
+        }
+
+        function abrirModalDetalle(id) {
+            if (!modalDetalle) {
+                return;
+            }
+            const denuncia = denunciasCache.get(Number(id));
+            if (!denuncia) {
+                return;
+            }
+            if (detalleDescripcion) {
+                detalleDescripcion.textContent = denuncia.descripcion || 'Sin descripción';
+            }
+            if (detalleDireccion) {
+                detalleDireccion.textContent = denuncia.direccion_textual || 'Sin dirección disponible';
+            }
+            if (detalleEstado) {
+                detalleEstado.textContent = formatearEstado(denuncia);
+            }
+            if (detalleCoordenadas) {
+                const latitud = Number.parseFloat(denuncia.latitud);
+                const longitud = Number.parseFloat(denuncia.longitud);
+                const latitudTexto = Number.isFinite(latitud) ? latitud.toFixed(6) : '--';
+                const longitudTexto = Number.isFinite(longitud) ? longitud.toFixed(6) : '--';
+                detalleCoordenadas.textContent = `Lat: ${latitudTexto} | Lng: ${longitudTexto}`;
+            }
+            if (detalleFecha) {
+                detalleFecha.textContent = formatearFecha(denuncia.fecha_creacion);
+            }
+            mostrarDetalleImagen(denuncia.imagen);
+            modalDetalle.show();
+        }
+
+        function abrirModalEditar(id) {
+            if (!modalEditar) {
+                return;
+            }
+            const denuncia = denunciasCache.get(Number(id));
+            if (!denuncia) {
+                return;
+            }
+            if (editarDenunciaIdInput) {
+                editarDenunciaIdInput.value = denuncia.id;
+            }
+            if (editarDescripcionInput) {
+                editarDescripcionInput.value = denuncia.descripcion || '';
+            }
+            if (editarDireccionInput) {
+                editarDireccionInput.value = denuncia.direccion_textual || '';
+            }
+            const latitud = Number.parseFloat(denuncia.latitud);
+            const longitud = Number.parseFloat(denuncia.longitud);
+            if (editarLatitudInput) {
+                editarLatitudInput.value = Number.isFinite(latitud) ? latitud.toFixed(6) : '';
+            }
+            if (editarLongitudInput) {
+                editarLongitudInput.value = Number.isFinite(longitud) ? longitud.toFixed(6) : '';
+            }
+            if (editarImagenInput) {
+                editarImagenInput.value = '';
+            }
+            mostrarImagenActualEdicion(denuncia.imagen);
+            modalEditar.show();
+        }
+
+        if (modalEditarElement) {
+            modalEditarElement.addEventListener('hidden.bs.modal', () => {
+                if (formEditarDenuncia) {
+                    formEditarDenuncia.reset();
+                }
+                mostrarImagenActualEdicion('');
+            });
+        }
+
+        if (editarImagenInput) {
+            editarImagenInput.addEventListener('change', () => {
+                const archivo = editarImagenInput.files && editarImagenInput.files[0];
+                if (!archivo) {
+                    const denuncia = denunciasCache.get(Number(editarDenunciaIdInput ? editarDenunciaIdInput.value : 0));
+                    mostrarImagenActualEdicion(denuncia && denuncia.imagen ? denuncia.imagen : '');
+                    return;
+                }
+                const lector = new FileReader();
+                lector.onload = (evento) => {
+                    const resultado = evento && evento.target ? evento.target.result : '';
+                    mostrarImagenActualEdicion(resultado || '');
+                };
+                lector.readAsDataURL(archivo);
+            });
         }
 
         async function cargarDenuncias() {
             if (!tablaDenunciasBody) {
                 return;
             }
-
             try {
                 const respuesta = await fetch('/api/denuncias/mis/', {
                     credentials: 'include',
                 });
-
                 if (!respuesta.ok) {
                     throw new Error('No se pudieron obtener tus denuncias.');
                 }
-
                 const data = await respuesta.json();
-
                 tablaDenunciasBody.innerHTML = '';
-
+                denunciasCache.clear();
                 if (!data || data.length === 0) {
-                    if (sinDenunciasMensaje) {
-                        sinDenunciasMensaje.classList.remove('d-none');
-                    }
-                    if (totalDenunciasBadge) {
-                        totalDenunciasBadge.textContent = '0 registros';
-                    }
+                    actualizarTotales();
                     return;
                 }
-
-                data.forEach((denuncia) => agregarDenunciaATabla(denuncia, { prepend: false }));
+                data.forEach((denuncia) => {
+                    agregarDenunciaATabla(denuncia, { prepend: false });
+                });
             } catch (error) {
                 console.error(error);
                 mostrarAlerta('No se pudieron cargar tus denuncias. Intenta nuevamente.', 'danger');
@@ -333,9 +869,20 @@
             if (!formDenuncia) {
                 return;
             }
+            const latitud = latitudInput ? latitudInput.value.trim() : '';
+            const longitud = longitudInput ? longitudInput.value.trim() : '';
+            const direccionSeleccionada = direccionInput ? direccionInput.value.trim() : '';
+            const archivoSeleccionado = imagenInput && imagenInput.files ? imagenInput.files[0] : null;
 
-            const latitud = latitudInput ? latitudInput.value : '';
-            const longitud = longitudInput ? longitudInput.value : '';
+            if (!archivoSeleccionado) {
+                mostrarAlerta('Debes adjuntar una fotografía del microbasural.', 'danger');
+                return;
+            }
+
+            if (!direccionSeleccionada) {
+                mostrarAlerta('Debes indicar una dirección para la denuncia.', 'danger');
+                return;
+            }
 
             if (!latitud || !longitud) {
                 mostrarAlerta('Debes seleccionar una ubicación en el mapa.', 'danger');
@@ -343,7 +890,11 @@
             }
 
             const formData = new FormData(formDenuncia);
-            const csrfToken = formDenuncia.querySelector('input[name="csrfmiddlewaretoken"]').value;
+            formData.set('latitud', latitud);
+            formData.set('longitud', longitud);
+            formData.set('direccion_textual', direccionSeleccionada);
+            const csrfInput = formDenuncia.querySelector('input[name="csrfmiddlewaretoken"]');
+            const csrfToken = csrfInput ? csrfInput.value : '';
 
             try {
                 const respuesta = await fetch('/api/denuncias/', {
@@ -357,9 +908,10 @@
 
                 if (!respuesta.ok) {
                     const errorData = await respuesta.json().catch(() => ({}));
-                    let mensajeError = errorData?.detail;
+                    let mensajeError = errorData && errorData.detail;
                     if (!mensajeError && errorData && typeof errorData === 'object') {
-                        const firstErrorKey = Object.keys(errorData)[0];
+                        const keys = Object.keys(errorData);
+                        const firstErrorKey = keys.length ? keys[0] : null;
                         if (firstErrorKey) {
                             const rawError = errorData[firstErrorKey];
                             if (Array.isArray(rawError) && rawError.length > 0) {
@@ -378,19 +930,8 @@
 
                 const data = await respuesta.json();
                 agregarDenunciaATabla(data);
-                formDenuncia.reset();
-                if (marker) {
-                    map.removeLayer(marker);
-                    marker = null;
-                }
-                if (latitudInput) {
-                    latitudInput.value = '';
-                }
-                if (longitudInput) {
-                    longitudInput.value = '';
-                }
-                if (modal) {
-                    modal.hide();
+                if (modalDenuncia) {
+                    modalDenuncia.hide();
                 }
                 mostrarAlerta('¡Denuncia registrada correctamente! Puedes verla en la tabla inferior.');
             } catch (error) {
@@ -399,32 +940,60 @@
             }
         }
 
-        if (formDenuncia) {
-            formDenuncia.addEventListener('submit', function (event) {
-                event.preventDefault();
-
-                if (!navigator.geolocation) {
-                    if (!latitudInput?.value || !longitudInput?.value) {
-                        mostrarAlerta('Tu navegador no soporta geolocalización. Selecciona la ubicación manualmente.', 'danger');
-                        return;
-                    }
-                    enviarDenuncia();
+        async function enviarEdicionDenuncia(event) {
+            event.preventDefault();
+            if (!formEditarDenuncia) {
+                return;
+            }
+            const denunciaId = Number(editarDenunciaIdInput ? editarDenunciaIdInput.value : 0);
+            if (!denunciaId) {
+                mostrarAlerta('No pudimos identificar la denuncia a actualizar.', 'danger');
+                return;
+            }
+            const csrfInput = formEditarDenuncia.querySelector('input[name="csrfmiddlewaretoken"]');
+            const csrfToken = csrfInput ? csrfInput.value : '';
+            const formData = new FormData(formEditarDenuncia);
+            formData.delete('denuncia_id');
+            const archivo = editarImagenInput && editarImagenInput.files ? editarImagenInput.files[0] : null;
+            if (!archivo) {
+                formData.delete('imagen');
+            }
+            try {
+                const respuesta = await fetch(`/api/denuncias/mis/${denunciaId}/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: formData,
+                    credentials: 'include',
+                });
+                if (!respuesta.ok) {
+                    const errorData = await respuesta.json().catch(() => ({}));
+                    const mensaje = (errorData && errorData.detail) || 'No se pudo actualizar la denuncia. Intenta nuevamente.';
+                    mostrarAlerta(mensaje, 'danger');
                     return;
                 }
+                const data = await respuesta.json();
+                agregarDenunciaATabla(data, { prepend: false });
+                if (modalEditar) {
+                    modalEditar.hide();
+                }
+                mostrarAlerta('Denuncia actualizada correctamente.');
+            } catch (error) {
+                console.error(error);
+                mostrarAlerta('Ocurrió un error al actualizar la denuncia. Intenta nuevamente.', 'danger');
+            }
+        }
 
-                navigator.geolocation.getCurrentPosition(pos => {
-                    document.querySelector('#latitud').value = pos.coords.latitude;
-                    document.querySelector('#longitud').value = pos.coords.longitude;
-                    actualizarMarcador(pos.coords.latitude, pos.coords.longitude);
-                    enviarDenuncia();
-                }, () => {
-                    if (!latitudInput?.value || !longitudInput?.value) {
-                        mostrarAlerta('No pudimos obtener tu ubicación automáticamente. Selecciónala manualmente en el mapa.', 'warning');
-                        return;
-                    }
-                    enviarDenuncia();
-                });
+        if (formDenuncia) {
+            formDenuncia.addEventListener('submit', (event) => {
+                event.preventDefault();
+                enviarDenuncia();
             });
+        }
+
+        if (formEditarDenuncia) {
+            formEditarDenuncia.addEventListener('submit', enviarEdicionDenuncia);
         }
 
         cargarDenuncias();
