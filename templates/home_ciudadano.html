@@ -320,6 +320,7 @@
         const buscarDireccionInput = document.getElementById('buscarDireccion');
         const btnBuscarDireccion = document.getElementById('btnBuscarDireccion');
         const btnUbicacion = document.getElementById('btnUbicacion');
+        const btnAbrirModalDenuncia = document.querySelector('[data-bs-target="#modalDenuncia"]');
         const imagenInput = document.getElementById('imagen');
         const imagenPreviewWrapper = document.getElementById('imagenPreviewWrapper');
         const imagenPreview = document.getElementById('imagenPreview');
@@ -350,6 +351,19 @@
         };
 
         const denunciasCache = new Map();
+        const opcionesGeolocalizacion = {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0,
+        };
+        const opcionesGeolocalizacionRapida = {
+            enableHighAccuracy: false,
+            timeout: 5000,
+            maximumAge: 120000,
+        };
+        let ultimaPosicionObtenida = null;
+        let geolocalizacionEnCurso = false;
+        let controladorReverseGeocode = null;
 
         const map = L.map('map').setView([-33.4489, -70.6693], 12);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -425,8 +439,14 @@
             if (!direccionInput) {
                 return;
             }
+            if (controladorReverseGeocode) {
+                controladorReverseGeocode.abort();
+            }
+            controladorReverseGeocode = new AbortController();
+            const { signal } = controladorReverseGeocode;
             try {
-                const respuesta = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitud}&lon=${longitud}&accept-language=es&addressdetails=1`);
+                direccionInput.value = 'Determinando dirección…';
+                const respuesta = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitud}&lon=${longitud}&accept-language=es&addressdetails=1`, { signal });
                 if (!respuesta.ok) {
                     throw new Error('No se pudo obtener la dirección.');
                 }
@@ -434,7 +454,12 @@
                 const direccionFormateada = formatearDireccionDesdeReverse(data);
                 direccionInput.value = direccionFormateada || data.display_name || '';
             } catch (error) {
+                if (error && error.name === 'AbortError') {
+                    return;
+                }
                 console.error(error);
+            } finally {
+                controladorReverseGeocode = null;
             }
         }
 
@@ -467,24 +492,84 @@
             posicionarMarcador(event.latlng.lat, event.latlng.lng, { obtenerDireccion: true });
         });
 
-        function solicitarGeolocalizacionAutomatica({ mostrarMensajes = false } = {}) {
+        function manejarErrorGeolocalizacion(error) {
+            if (!error || !alertPlaceholder) {
+                return;
+            }
+            let mensaje = 'No pudimos obtener tu ubicación automáticamente. Ajusta el pin manualmente.';
+            if (error.code === 1) {
+                mensaje = 'Debes otorgar permiso de ubicación para usar esta función.';
+            } else if (error.code === 2) {
+                mensaje = 'Tu dispositivo no pudo determinar la ubicación. Intenta nuevamente o ajusta el pin manualmente.';
+            } else if (error.code === 3) {
+                mensaje = 'La solicitud de ubicación tardó demasiado. Intenta nuevamente o ajusta el pin manualmente.';
+            }
+            mostrarAlerta(mensaje, 'warning');
+        }
+
+        function solicitarGeolocalizacionAutomatica({ mostrarMensajes = false, forzar = false } = {}) {
             if (!navigator.geolocation) {
                 if (mostrarMensajes) {
                     mostrarAlerta('Tu navegador no soporta geolocalización.', 'warning');
                 }
                 return;
             }
-            navigator.geolocation.getCurrentPosition(
-                (posicion) => {
-                    const { latitude, longitude } = posicion.coords;
-                    posicionarMarcador(latitude, longitude, { obtenerDireccion: true });
-                },
-                () => {
-                    if (mostrarMensajes) {
-                        mostrarAlerta('No pudimos obtener tu ubicación automáticamente. Ajusta el pin manualmente.', 'warning');
+            if (geolocalizacionEnCurso && !forzar) {
+                return;
+            }
+            geolocalizacionEnCurso = true;
+            let solicitudesCompletadas = 0;
+            let obtuvoCoordenadas = false;
+            let errorPreciso = null;
+
+            const finalizarSolicitud = () => {
+                solicitudesCompletadas += 1;
+                if (solicitudesCompletadas >= 2) {
+                    geolocalizacionEnCurso = false;
+                    if (!obtuvoCoordenadas && mostrarMensajes && errorPreciso) {
+                        manejarErrorGeolocalizacion(errorPreciso);
                     }
                 }
+            };
+
+            const procesarPosicion = (posicion, { esPrecisa }) => {
+                const { latitude, longitude } = posicion.coords;
+                ultimaPosicionObtenida = { latitude, longitude };
+                obtuvoCoordenadas = true;
+                posicionarMarcador(latitude, longitude, { obtenerDireccion: true });
+                if (esPrecisa) {
+                    geolocalizacionEnCurso = false;
+                    solicitudesCompletadas = 2;
+                }
+                finalizarSolicitud();
+            };
+
+            const procesarError = (error, { esPrecisa }) => {
+                if (esPrecisa) {
+                    errorPreciso = error;
+                }
+                finalizarSolicitud();
+            };
+
+            navigator.geolocation.getCurrentPosition(
+                (posicion) => procesarPosicion(posicion, { esPrecisa: false }),
+                (error) => procesarError(error, { esPrecisa: false }),
+                opcionesGeolocalizacionRapida
             );
+
+            navigator.geolocation.getCurrentPosition(
+                (posicion) => procesarPosicion(posicion, { esPrecisa: true }),
+                (error) => procesarError(error, { esPrecisa: true }),
+                opcionesGeolocalizacion
+            );
+        }
+
+        if (btnAbrirModalDenuncia) {
+            btnAbrirModalDenuncia.addEventListener('click', () => {
+                if (!ultimaPosicionObtenida) {
+                    solicitarGeolocalizacionAutomatica({ forzar: true });
+                }
+            });
         }
 
         if (modalDenunciaElement) {
@@ -494,7 +579,13 @@
                     const sinLatitud = !latitudInput || !latitudInput.value;
                     const sinLongitud = !longitudInput || !longitudInput.value;
                     if (sinLatitud || sinLongitud) {
-                        solicitarGeolocalizacionAutomatica();
+                        solicitarGeolocalizacionAutomatica({ mostrarMensajes: true });
+                    } else if (ultimaPosicionObtenida) {
+                        posicionarMarcador(
+                            ultimaPosicionObtenida.latitude,
+                            ultimaPosicionObtenida.longitude,
+                            { obtenerDireccion: false }
+                        );
                     }
                 }, 200);
             });
@@ -524,7 +615,7 @@
 
         if (btnUbicacion) {
             btnUbicacion.addEventListener('click', () => {
-                solicitarGeolocalizacionAutomatica({ mostrarMensajes: true });
+                solicitarGeolocalizacionAutomatica({ mostrarMensajes: true, forzar: true });
             });
         }
 
