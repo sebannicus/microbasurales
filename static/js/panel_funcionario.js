@@ -136,7 +136,18 @@
 
     estadoTabs.forEach((tab) => {
         tab.addEventListener("click", () => {
-            activarTab(tab.dataset.estado);
+            const estadoObjetivo = tab.dataset.estado || "";
+
+            if (filtrosForm && filtrosForm.estado) {
+                filtrosForm.estado.value = estadoObjetivo;
+            }
+
+            activarTab(estadoObjetivo);
+
+            cargarMapaConDatos({
+                ...obtenerFiltrosDesdeFormulario(),
+                estado: estadoObjetivo,
+            });
         });
     });
 
@@ -153,6 +164,61 @@
     const marcadoresPorId = new Map();
     let filtrosActivos = {};
 
+    function obtenerFiltrosDesdeFormulario() {
+        if (!filtrosForm) {
+            return { ...filtrosActivos };
+        }
+
+        const obtenerValorSeguro = (campo) =>
+            campo && "value" in campo ? campo.value : "";
+
+        return {
+            estado: obtenerValorSeguro(filtrosForm.estado),
+            zona: obtenerValorSeguro(filtrosForm.zona),
+            desde: obtenerValorSeguro(filtrosForm.fecha_desde),
+            hasta: obtenerValorSeguro(filtrosForm.fecha_hasta),
+        };
+    }
+
+    function normalizarFiltros(filtros = {}) {
+        const limpiar = (valor) =>
+            typeof valor === "string" ? valor.trim() : valor;
+
+        const normalizados = { ...filtros };
+
+        if (!normalizados.desde && normalizados.fecha_desde) {
+            normalizados.desde = normalizados.fecha_desde;
+        }
+        if (!normalizados.hasta && normalizados.fecha_hasta) {
+            normalizados.hasta = normalizados.fecha_hasta;
+        }
+
+        normalizados.estado = limpiar(normalizados.estado || "");
+        normalizados.zona = limpiar(normalizados.zona || "");
+        normalizados.desde = limpiar(normalizados.desde || "");
+        normalizados.hasta = limpiar(normalizados.hasta || "");
+
+        delete normalizados.fecha_desde;
+        delete normalizados.fecha_hasta;
+
+        return normalizados;
+    }
+
+    function obtenerEstadoInicialDesdeApi() {
+        if (!apiUrl) {
+            return "";
+        }
+
+        try {
+            const url = new URL(apiUrl);
+            return url.searchParams.get("estado") || "";
+        } catch (error) {
+            console.warn("No fue posible determinar el estado inicial", error);
+        }
+
+        return "";
+    }
+
     function obtenerCSRFToken() {
         const nombre = "csrftoken";
         const cookies = document.cookie ? document.cookie.split(";") : [];
@@ -168,19 +234,28 @@
         return null;
     }
 
-    async function cargarDenuncias(filtros = {}) {
-        filtrosActivos = filtros;
+    async function cargarMapaConDatos(filtros = {}) {
+        const filtrosNormalizados = normalizarFiltros(filtros);
+        filtrosActivos = filtrosNormalizados;
         markerLayer.clearLayers();
         marcadoresPorId.clear();
 
         try {
-            const parametros = new URLSearchParams();
-            Object.entries(filtros)
-                .filter(([, value]) => value)
-                .forEach(([clave, valor]) => parametros.append(clave, valor));
+            const filtrosValidos = Object.entries(filtrosNormalizados).filter(
+                ([, value]) =>
+                    value !== undefined &&
+                    value !== null &&
+                    String(value).trim() !== ""
+            );
 
             let paginaUrl = new URL(apiUrl);
-            paginaUrl.search = parametros.toString();
+            const parametrosBase = new URLSearchParams(paginaUrl.search);
+
+            filtrosValidos.forEach(([clave, valor]) => {
+                parametrosBase.set(clave, valor);
+            });
+
+            paginaUrl.search = parametrosBase.toString();
 
             const bounds = [];
             const pendientes = [];
@@ -259,9 +334,13 @@
                 contadorResueltas,
                 { mostrarEstado: true }
             );
-            activarTab(filtros.estado);
+            activarTab(filtrosNormalizados.estado);
         } catch (error) {
-            console.error(error);
+            console.error(
+                "Error al cargar las denuncias con los filtros",
+                filtrosNormalizados,
+                error
+            );
             mostrarMensajeGlobal(
                 "No se pudieron cargar las denuncias. Intenta nuevamente.",
                 "danger"
@@ -678,7 +757,7 @@
 
                 feedback.textContent = "Cambios guardados correctamente";
                 feedback.className = "feedback mt-2 text-success";
-                cargarDenuncias(filtrosActivos);
+                cargarMapaConDatos(filtrosActivos);
             } catch (error) {
                 console.error(error);
                 feedback.textContent =
@@ -688,22 +767,26 @@
         });
     });
 
-    filtrosForm.addEventListener("submit", (event) => {
-        event.preventDefault();
-        const filtros = {
-            estado: filtrosForm.estado.value,
-            zona: filtrosForm.zona.value,
-            fecha_desde: filtrosForm.fecha_desde.value,
-            fecha_hasta: filtrosForm.fecha_hasta.value,
-        };
-        cargarDenuncias(filtros);
-    });
+    if (filtrosForm) {
+        filtrosForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const filtros = obtenerFiltrosDesdeFormulario();
+            cargarMapaConDatos(filtros);
+        });
+    }
 
-    recargarBtn.addEventListener("click", () => {
-        cargarDenuncias(filtrosActivos);
-    });
+    if (recargarBtn) {
+        recargarBtn.addEventListener("click", () => {
+            cargarMapaConDatos(filtrosActivos);
+        });
+    }
 
-    cargarDenuncias();
+    const estadoInicial = obtenerEstadoInicialDesdeApi() || ESTADO_DEFECTO;
+    const filtrosIniciales = { estado: estadoInicial };
+    if (filtrosForm && filtrosForm.estado) {
+        filtrosForm.estado.value = estadoInicial;
+    }
+    cargarMapaConDatos(filtrosIniciales);
 
     async function extraerMensajeDeError(respuesta) {
         const generico = "No se pudieron guardar los cambios";
