@@ -47,10 +47,6 @@ class DenunciaSerializer(serializers.ModelSerializer):
 
 class DenunciaAdminSerializer(DenunciaSerializer):
     usuario = serializers.SerializerMethodField()
-    ESTADO_MENSAJES = {
-        EstadoDenuncia.EN_PROCESO: "Tu denuncia \"{descripcion}\" está siendo gestionada por nuestro equipo.",
-        EstadoDenuncia.RESUELTA: "Tu denuncia \"{descripcion}\" fue finalizada por el municipio.",
-    }
 
     class Meta(DenunciaSerializer.Meta):
         fields = DenunciaSerializer.Meta.fields + ["usuario"]
@@ -114,15 +110,9 @@ class DenunciaAdminSerializer(DenunciaSerializer):
             )
 
     def _crear_notificacion_estado(self, denuncia, nuevo_estado):
-        mensaje_base = self.ESTADO_MENSAJES.get(nuevo_estado)
-        if not mensaje_base:
+        mensaje = self._construir_mensaje_notificacion(denuncia)
+        if not mensaje:
             return
-
-        descripcion = (denuncia.descripcion or "Sin descripción").strip()
-        if len(descripcion) > 80:
-            descripcion = f"{descripcion[:77]}…"
-
-        mensaje = mensaje_base.format(descripcion=descripcion)
         try:
             DenunciaNotificacion.objects.create(
                 usuario=denuncia.usuario,
@@ -135,6 +125,13 @@ class DenunciaAdminSerializer(DenunciaSerializer):
                 "No se pudo registrar la notificación del cambio de estado; ¿ejecutaste las migraciones?",
                 exc_info=True,
             )
+
+    def _construir_mensaje_notificacion(self, denuncia):
+        estado_display = denuncia.get_estado_display()
+        if not estado_display:
+            return ""
+
+        return f"Tu denuncia #{denuncia.id} cambió de estado a \"{estado_display}\"."
 
 
 class DenunciaCiudadanoSerializer(DenunciaSerializer):
