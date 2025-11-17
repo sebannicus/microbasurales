@@ -6,6 +6,8 @@ from .views import (
     DenunciaListCreateView,
     MiDenunciaRetrieveUpdateView,
     MisDenunciasListView,
+    MisNotificacionesListView,
+    NotificacionActualizarView,
 )
 
 
@@ -22,5 +24,15 @@ urlpatterns = [
         "admin/<int:pk>/",
         DenunciaAdminUpdateView.as_view(),
         name="denuncias_admin_update",
+    ),
+    path(
+        "notificaciones/",
+        MisNotificacionesListView.as_view(),
+        name="mis_notificaciones_denuncias",
+    ),
+    path(
+        "notificaciones/<int:pk>/",
+        NotificacionActualizarView.as_view(),
+        name="notificacion_denuncia_actualizar",
     ),
 ]

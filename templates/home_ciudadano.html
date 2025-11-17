@@ -26,6 +26,32 @@
         color: #4a4a4a;
     }
 
+    .notificaciones-card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
+    }
+
+    .notificaciones-card .card-header {
+        background-color: #7f0000;
+        color: #fff;
+        border-top-left-radius: 12px;
+        border-top-right-radius: 12px;
+    }
+
+    .notificacion-item {
+        border: none;
+        border-bottom: 1px solid #f1f1f1;
+    }
+
+    .notificacion-item:last-child {
+        border-bottom: none;
+    }
+
+    .notificacion-item small {
+        color: #6c757d;
+    }
+
     .denuncias-card {
         background: #ffffff;
         border-radius: 12px;
@@ -103,6 +129,19 @@
                     <i class='bx bx-plus-medical me-1'></i> Ingresar Denuncia
                 </button>
             </div>
+        </div>
+    </div>
+
+    <div class="card notificaciones-card mb-4" id="cardNotificaciones">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Notificaciones recientes</h5>
+            <span class="badge bg-light text-dark" id="badgeNotificaciones">Sin novedades</span>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-0" id="sinNotificaciones">
+                No tienes notificaciones pendientes. Te avisaremos cuando cambie el estado de tus denuncias.
+            </p>
+            <ul class="list-group list-group-flush" id="listaNotificaciones"></ul>
         </div>
     </div>
 
@@ -266,7 +305,7 @@
                         </div>
                         <div class="col-lg-6">
                             <label for="editarDireccion" class="form-label">Dirección de referencia</label>
-                            <input type="text" class="form-control" id="editarDireccion" name="direccion_textual" required>
+                            <input type="text" class="form-control" id="editarDireccion" name="direccion_textual" readonly required>
 
                             <label for="editarLatitud" class="form-label mt-3">Latitud</label>
                             <input type="text" class="form-control" id="editarLatitud" name="latitud" readonly>
@@ -275,8 +314,9 @@
                             <input type="text" class="form-control" id="editarLongitud" name="longitud" readonly>
 
                             <p class="direccion-ayuda mt-3 mb-0">
-                                Si necesitas ajustar la ubicación exacta, elimina la denuncia y vuelve a crearla con la
-                                información correcta.
+                                Para proteger la trazabilidad del caso solo puedes editar la descripción y la fotografía.
+                                Si necesitas ajustar la ubicación exacta, elimina la denuncia y vuelve a crearla con los
+                                datos correctos.
                             </p>
                         </div>
                     </div>
@@ -314,11 +354,19 @@
             : null;
         const totalDenunciasBadge = document.getElementById('totalDenuncias');
         const sinDenunciasMensaje = document.getElementById('sinDenuncias');
+        const listaNotificaciones = document.getElementById('listaNotificaciones');
+        const sinNotificacionesTexto = document.getElementById('sinNotificaciones');
+        const badgeNotificaciones = document.getElementById('badgeNotificaciones');
         const latitudInput = document.getElementById('latitud');
         const longitudInput = document.getElementById('longitud');
         const direccionInput = document.getElementById('direccion_textual');
         const buscarDireccionInput = document.getElementById('buscarDireccion');
         const btnBuscarDireccion = document.getElementById('btnBuscarDireccion');
+
+        function obtenerCsrfToken() {
+            const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+            return csrfInput ? csrfInput.value : '';
+        }
         const btnUbicacion = document.getElementById('btnUbicacion');
         const btnAbrirModalDenuncia = document.querySelector('[data-bs-target="#modalDenuncia"]');
         const imagenInput = document.getElementById('imagen');
@@ -683,6 +731,121 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+        function actualizarResumenNotificaciones(total) {
+            if (!badgeNotificaciones) {
+                return;
+            }
+            if (total === 0) {
+                badgeNotificaciones.textContent = 'Sin novedades';
+                badgeNotificaciones.classList.remove('bg-danger', 'text-white');
+                badgeNotificaciones.classList.add('bg-light', 'text-dark');
+            } else {
+                badgeNotificaciones.textContent = `${total} nueva${total !== 1 ? 's' : ''}`;
+                badgeNotificaciones.classList.remove('bg-light', 'text-dark');
+                badgeNotificaciones.classList.add('bg-danger', 'text-white');
+            }
+        }
+
+        function renderNotificaciones(notificaciones) {
+            if (!listaNotificaciones) {
+                return;
+            }
+            listaNotificaciones.innerHTML = '';
+            if (!Array.isArray(notificaciones) || notificaciones.length === 0) {
+                if (sinNotificacionesTexto) {
+                    sinNotificacionesTexto.classList.remove('d-none');
+                }
+                actualizarResumenNotificaciones(0);
+                return;
+            }
+            if (sinNotificacionesTexto) {
+                sinNotificacionesTexto.classList.add('d-none');
+            }
+            notificaciones.forEach((notificacion) => {
+                const item = document.createElement('li');
+                item.className = 'list-group-item d-flex flex-column flex-lg-row justify-content-between align-items-start notificacion-item gap-2';
+
+                const contenido = document.createElement('div');
+                contenido.className = 'me-lg-3';
+                const estado = document.createElement('span');
+                estado.className = 'badge bg-light text-danger me-2';
+                estado.textContent = notificacion.estado_nuevo_display || 'Estado actualizado';
+                const mensaje = document.createElement('p');
+                mensaje.className = 'mb-1 fw-semibold';
+                mensaje.textContent = notificacion.mensaje || 'Estado actualizado.';
+                const fecha = document.createElement('small');
+                fecha.textContent = formatearFecha(notificacion.fecha_creacion);
+                contenido.appendChild(estado);
+                contenido.appendChild(mensaje);
+                contenido.appendChild(fecha);
+
+                const acciones = document.createElement('div');
+                acciones.className = 'd-flex align-items-center flex-wrap gap-2';
+                if (notificacion.denuncia) {
+                    const btnVer = document.createElement('button');
+                    btnVer.type = 'button';
+                    btnVer.className = 'btn btn-link btn-sm text-danger text-decoration-none p-0';
+                    btnVer.textContent = 'Ver denuncia';
+                    btnVer.addEventListener('click', () => abrirModalDetalle(notificacion.denuncia));
+                    acciones.appendChild(btnVer);
+                }
+                const btnMarcar = document.createElement('button');
+                btnMarcar.type = 'button';
+                btnMarcar.className = 'btn btn-outline-success btn-sm';
+                btnMarcar.textContent = 'Marcar como leída';
+                btnMarcar.addEventListener('click', () => marcarNotificacionComoLeida(notificacion.id));
+                acciones.appendChild(btnMarcar);
+
+                item.appendChild(contenido);
+                item.appendChild(acciones);
+                listaNotificaciones.appendChild(item);
+            });
+            actualizarResumenNotificaciones(notificaciones.length);
+        }
+
+        async function cargarNotificaciones() {
+            if (!listaNotificaciones) {
+                return;
+            }
+            try {
+                const respuesta = await fetch('/api/denuncias/notificaciones/?solo_no_leidas=1', {
+                    credentials: 'include',
+                });
+                if (!respuesta.ok) {
+                    throw new Error('No se pudieron cargar las notificaciones.');
+                }
+                const data = await respuesta.json();
+                renderNotificaciones(Array.isArray(data) ? data : []);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function marcarNotificacionComoLeida(notificacionId) {
+            const csrfToken = obtenerCsrfToken();
+            if (!notificacionId || !csrfToken) {
+                return;
+            }
+            try {
+                const respuesta = await fetch(`/api/denuncias/notificaciones/${notificacionId}/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: JSON.stringify({ leida: true }),
+                    credentials: 'include',
+                });
+                if (!respuesta.ok) {
+                    throw new Error('No se pudo actualizar la notificación.');
+                }
+                cargarNotificaciones();
+            } catch (error) {
+                console.error(error);
+                mostrarAlerta('No pudimos actualizar la notificación. Intenta nuevamente.', 'warning');
+            }
+        }
+
         function formatearEstado(denuncia) {
             if (denuncia.estado_display) {
                 return denuncia.estado_display;
@@ -984,8 +1147,7 @@
             formData.set('latitud', latitud);
             formData.set('longitud', longitud);
             formData.set('direccion_textual', direccionSeleccionada);
-            const csrfInput = formDenuncia.querySelector('input[name="csrfmiddlewaretoken"]');
-            const csrfToken = csrfInput ? csrfInput.value : '';
+            const csrfToken = obtenerCsrfToken();
 
             try {
                 const respuesta = await fetch('/api/denuncias/', {
@@ -1041,14 +1203,18 @@
                 mostrarAlerta('No pudimos identificar la denuncia a actualizar.', 'danger');
                 return;
             }
-            const csrfInput = formEditarDenuncia.querySelector('input[name="csrfmiddlewaretoken"]');
-            const csrfToken = csrfInput ? csrfInput.value : '';
             const formData = new FormData(formEditarDenuncia);
             formData.delete('denuncia_id');
+            formData.delete('direccion_textual');
+            formData.delete('latitud');
+            formData.delete('longitud');
+            formData.delete('zona');
+            formData.delete('direccion');
             const archivo = editarImagenInput && editarImagenInput.files ? editarImagenInput.files[0] : null;
             if (!archivo) {
                 formData.delete('imagen');
             }
+            const csrfToken = obtenerCsrfToken();
             try {
                 const respuesta = await fetch(`/api/denuncias/mis/${denunciaId}/`, {
                     method: 'PATCH',
@@ -1088,6 +1254,7 @@
         }
 
         cargarDenuncias();
+        cargarNotificaciones();
     });
 </script>
 {% endblock %}

@@ -13,9 +13,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Denuncia
+from .models import Denuncia, DenunciaNotificacion
 from .permissions import IsFuncionarioMunicipal
-from .serializers import DenunciaAdminSerializer, DenunciaSerializer
+from .serializers import (
+    DenunciaAdminSerializer,
+    DenunciaCiudadanoSerializer,
+    DenunciaSerializer,
+    NotificacionDenunciaSerializer,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -93,7 +98,7 @@ class DenunciaListCreateView(APIView):
 class MisDenunciasListView(generics.ListAPIView):
     """Lista únicamente las denuncias del usuario autenticado."""
 
-    serializer_class = DenunciaSerializer
+    serializer_class = DenunciaCiudadanoSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -106,7 +111,7 @@ class MisDenunciasListView(generics.ListAPIView):
 class MiDenunciaRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     """Permite obtener y actualizar una denuncia propia."""
 
-    serializer_class = DenunciaSerializer
+    serializer_class = DenunciaCiudadanoSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -182,6 +187,33 @@ class DenunciaAdminUpdateView(generics.UpdateAPIView):
         context = super().get_serializer_context()
         context["request"] = self.request
         return context
+
+
+class MisNotificacionesListView(generics.ListAPIView):
+    """Devuelve las notificaciones de cambio de estado del usuario autenticado."""
+
+    serializer_class = NotificacionDenunciaSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = DenunciaNotificacion.objects.filter(usuario=self.request.user)
+        solo_no_leidas = self.request.query_params.get("solo_no_leidas")
+        if solo_no_leidas is not None:
+            valor = str(solo_no_leidas).lower()
+            if valor in {"1", "true", "t", "yes", "on"}:
+                queryset = queryset.filter(leida=False)
+        return queryset.order_by("-fecha_creacion")
+
+
+class NotificacionActualizarView(generics.UpdateAPIView):
+    """Permite marcar como leídas las notificaciones propias."""
+
+    serializer_class = NotificacionDenunciaSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["patch"]
+
+    def get_queryset(self):
+        return DenunciaNotificacion.objects.filter(usuario=self.request.user)
 
 
 def _usuario_puede_gestionar_denuncias(usuario) -> bool:
