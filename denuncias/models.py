@@ -41,6 +41,10 @@ class Denuncia(models.Model):
     """
     Modelo principal para una denuncia.
     """
+    # Alias al enumerador de estados para mantener compatibilidad con
+    # otros módulos que esperan accederlo como `Denuncia.EstadoDenuncia`.
+    EstadoDenuncia = EstadoDenuncia
+
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
