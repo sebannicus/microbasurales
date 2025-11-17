@@ -7,6 +7,7 @@ class DenunciaSerializer(serializers.ModelSerializer):
     estado_display = serializers.CharField(
         source="get_estado_display", read_only=True
     )
+    color = serializers.SerializerMethodField()
 
     class Meta:
         model = Denuncia
@@ -23,6 +24,7 @@ class DenunciaSerializer(serializers.ModelSerializer):
             "latitud",
             "longitud",
             "cuadrilla_asignada",
+            "color",
         ]
         read_only_fields = [
             "id",
@@ -30,7 +32,11 @@ class DenunciaSerializer(serializers.ModelSerializer):
             "estado",
             "estado_display",
             "cuadrilla_asignada",
+            "color",
         ]
+
+    def get_color(self, obj):
+        return EstadoDenuncia.get_color(obj.estado)
 
 
 class DenunciaAdminSerializer(DenunciaSerializer):
@@ -42,6 +48,7 @@ class DenunciaAdminSerializer(DenunciaSerializer):
             "id",
             "fecha_creacion",
             "estado_display",
+            "color",
             "usuario",
         ]
 

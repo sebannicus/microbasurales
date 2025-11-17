@@ -46,28 +46,74 @@
         sinResueltasElemento.remove();
     }
 
-    const ESTADO_COLORES = {
-        pendiente: "#d62828",
-        en_proceso: "#f77f00",
-        resuelta: "#2b9348",
-    };
+    const estadosConfigElement = document.getElementById("estados-config");
+    const DEFAULT_ESTADOS_CONFIG = [
+        { value: "pendiente", label: "Nueva", color: "#d32f2f" },
+        { value: "en_proceso", label: "En gestión", color: "#f57c00" },
+        { value: "resuelta", label: "Finalizada", color: "#388e3c" },
+    ];
 
-    const ESTADO_LABELS = {
-        pendiente: "Nuevo",
-        en_proceso: "En gestión",
-        resuelta: "Resuelto",
-    };
+    let estadosConfig = DEFAULT_ESTADOS_CONFIG;
+    if (estadosConfigElement) {
+        try {
+            const parsed = JSON.parse(estadosConfigElement.textContent || "");
+            if (Array.isArray(parsed) && parsed.length) {
+                estadosConfig = parsed;
+            }
+        } catch (error) {
+            console.warn("No fue posible interpretar la configuración de estados", error);
+        }
+    }
+
+    const estadosMap = new Map(
+        estadosConfig.map((estado) => [estado.value, estado])
+    );
+    const DEFAULT_MARKER_COLOR = "#1d3557";
+    const ESTADO_DEFECTO =
+        (estadosMap.has("pendiente")
+            ? "pendiente"
+            : estadosConfig[0] && estadosConfig[0].value) || "pendiente";
+
+    function obtenerConfigEstado(valor) {
+        return estadosMap.get(valor);
+    }
+
+    function obtenerColorDenuncia(denuncia) {
+        if (denuncia && denuncia.color) {
+            return denuncia.color;
+        }
+
+        const config = denuncia ? obtenerConfigEstado(denuncia.estado) : null;
+        return (config && config.color) || DEFAULT_MARKER_COLOR;
+    }
+
+    function obtenerEtiquetaEstado(denuncia) {
+        if (!denuncia) {
+            return "";
+        }
+
+        if (denuncia.estado_display) {
+            return denuncia.estado_display;
+        }
+
+        const config = obtenerConfigEstado(denuncia.estado);
+        if (config && config.label) {
+            return config.label;
+        }
+
+        return denuncia.estado;
+    }
 
     function activarTab(estadoObjetivo) {
         if (!estadoObjetivo) {
-            estadoObjetivo = "pendiente";
+            estadoObjetivo = ESTADO_DEFECTO;
         }
 
         const estadoExiste = Array.from(estadoTabs).some(
             (tab) => tab.dataset.estado === estadoObjetivo
         );
 
-        const estadoActivo = estadoExiste ? estadoObjetivo : "pendiente";
+        const estadoActivo = estadoExiste ? estadoObjetivo : ESTADO_DEFECTO;
 
         estadoTabs.forEach((tab) => {
             if (tab.dataset.estado === estadoActivo) {
@@ -241,7 +287,7 @@
             return;
         }
 
-        const color = ESTADO_COLORES[denuncia.estado] || "#1d3557";
+        const color = obtenerColorDenuncia(denuncia);
 
         const marker = L.circleMarker([denuncia.latitud, denuncia.longitud], {
             radius: 10,
@@ -268,19 +314,19 @@
             ? new Date(denuncia.fecha_creacion).toLocaleString("es-CL")
             : "Fecha no disponible";
 
-        const options = Object.entries(ESTADO_LABELS)
+        const options = estadosConfig
             .map(
-                ([valor, etiqueta]) =>
-                    `<option value="${valor}" ${
-                        denuncia.estado === valor ? "selected" : ""
-                    }>${etiqueta}</option>`
+                ({ value, label }) =>
+                    `<option value="${value}" ${
+                        denuncia.estado === value ? "selected" : ""
+                    }>${label}</option>`
             )
             .join("");
 
         return `
             <div class="popup-denuncia" data-id="${denuncia.id}">
                 ${imagenHtml}
-                <p class="mb-1"><strong>Estado actual:</strong> <span class="estado-badge" style="color: ${ESTADO_COLORES[denuncia.estado] || "#212529"};">${ESTADO_LABELS[denuncia.estado] || denuncia.estado}</span></p>
+                <p class="mb-1"><strong>Estado actual:</strong> <span class="estado-badge" style="color: ${obtenerColorDenuncia(denuncia)};">${obtenerEtiquetaEstado(denuncia)}</span></p>
                 <p class="mb-1"><strong>Descripción:</strong> ${denuncia.descripcion}</p>
                 <p class="mb-1"><strong>Dirección:</strong> ${direccion}</p>
                 <p class="mb-2"><strong>Zona:</strong> ${zona}</p>
@@ -405,7 +451,7 @@
         if (mostrarEstado) {
             const estadoLabel = document.createElement("div");
             estadoLabel.className = "estado-label text-muted";
-            estadoLabel.textContent = ESTADO_LABELS[denuncia.estado] || denuncia.estado;
+            estadoLabel.textContent = obtenerEtiquetaEstado(denuncia);
             info.appendChild(estadoLabel);
         }
 
