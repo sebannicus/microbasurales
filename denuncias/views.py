@@ -8,6 +8,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.dateparse import parse_date
 from rest_framework import generics, permissions, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -122,7 +123,10 @@ class MiDenunciaRetrieveUpdateView(generics.RetrieveUpdateAPIView):
 
 
 class DenunciaAdminListView(generics.ListAPIView):
-    """Lista de denuncias con filtros para funcionarios municipales."""
+    """Lista de denuncias con filtros para funcionarios municipales.
+
+    Ejemplo: ``/api/denuncias/?estado=pendiente&zona=Centro&desde=2024-01-01&hasta=2024-01-31``
+    """
 
     serializer_class = DenunciaAdminSerializer
     permission_classes = [permissions.IsAuthenticated, IsFuncionarioMunicipal]
@@ -161,11 +165,11 @@ class DenunciaAdminListView(generics.ListAPIView):
         if zona:
             queryset = queryset.filter(zona__iexact=zona)
 
-        fecha_desde = parse_date(self.request.query_params.get("fecha_desde", ""))
+        fecha_desde = self._parse_fecha_param("fecha_desde", "desde")
         if fecha_desde:
             queryset = queryset.filter(fecha_creacion__date__gte=fecha_desde)
 
-        fecha_hasta = parse_date(self.request.query_params.get("fecha_hasta", ""))
+        fecha_hasta = self._parse_fecha_param("fecha_hasta", "hasta")
         if fecha_hasta:
             queryset = queryset.filter(fecha_creacion__date__lte=fecha_hasta)
 
@@ -175,6 +179,24 @@ class DenunciaAdminListView(generics.ListAPIView):
         context = super().get_serializer_context()
         context["request"] = self.request
         return context
+
+    def _parse_fecha_param(self, *nombres):
+        for nombre in nombres:
+            valor = (self.request.query_params.get(nombre) or "").strip()
+            if not valor:
+                continue
+
+            fecha = parse_date(valor)
+            if fecha:
+                return fecha
+
+            raise ValidationError(
+                {
+                    nombre: "Formato de fecha inválido. Usa AAAA-MM-DD.",
+                }
+            )
+
+        return None
 
 
 class DenunciaAdminUpdateView(generics.UpdateAPIView):
