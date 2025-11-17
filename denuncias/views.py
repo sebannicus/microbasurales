@@ -2,7 +2,7 @@ import logging
 from urllib.parse import urlencode
 
 from django.contrib.auth.decorators import login_required
-from django.db import OperationalError, ProgrammingError
+from django.db import OperationalError, ProgrammingError, connection
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -195,27 +195,39 @@ class DenunciaAdminUpdateView(generics.UpdateAPIView):
         return context
 
 
+def _tabla_notificaciones_disponible():
+    """Verifica si la tabla de notificaciones existe en la base de datos."""
+
+    try:
+        tablas = connection.introspection.table_names()
+    except (ProgrammingError, OperationalError):
+        return False
+    return DenunciaNotificacion._meta.db_table in tablas
+
+
 class MisNotificacionesListView(generics.ListAPIView):
     """Devuelve las notificaciones de cambio de estado del usuario autenticado."""
 
     serializer_class = NotificacionDenunciaSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        try:
-            queryset = DenunciaNotificacion.objects.filter(usuario=self.request.user)
-            solo_no_leidas = self.request.query_params.get("solo_no_leidas")
-            if solo_no_leidas is not None:
-                valor = str(solo_no_leidas).lower()
-                if valor in {"1", "true", "t", "yes", "on"}:
-                    queryset = queryset.filter(leida=False)
-            return queryset.order_by("-fecha_creacion")
-        except (ProgrammingError, OperationalError):
+    def list(self, request, *args, **kwargs):
+        if not _tabla_notificaciones_disponible():
             logger.warning(
                 "No se pudieron cargar las notificaciones; ¿ejecutaste las migraciones?",
                 exc_info=True,
             )
-            return DenunciaNotificacion.objects.none()
+            return Response([], status=status.HTTP_200_OK)
+        return super().list(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = DenunciaNotificacion.objects.filter(usuario=self.request.user)
+        solo_no_leidas = self.request.query_params.get("solo_no_leidas")
+        if solo_no_leidas is not None:
+            valor = str(solo_no_leidas).lower()
+            if valor in {"1", "true", "t", "yes", "on"}:
+                queryset = queryset.filter(leida=False)
+        return queryset.order_by("-fecha_creacion")
 
 
 class NotificacionActualizarView(generics.UpdateAPIView):
@@ -226,14 +238,14 @@ class NotificacionActualizarView(generics.UpdateAPIView):
     http_method_names = ["patch"]
 
     def get_queryset(self):
-        try:
-            return DenunciaNotificacion.objects.filter(usuario=self.request.user)
-        except (ProgrammingError, OperationalError):
+        if not _tabla_notificaciones_disponible():
             logger.warning(
                 "No se pudieron actualizar las notificaciones; ¿ejecutaste las migraciones?",
                 exc_info=True,
             )
             return DenunciaNotificacion.objects.none()
+
+        return DenunciaNotificacion.objects.filter(usuario=self.request.user)
 
 
 def _usuario_puede_gestionar_denuncias(usuario) -> bool:
