@@ -177,6 +177,19 @@
         return ESTADO_PARAMETRO_MAP.get(limpio) || "";
     }
 
+    function obtenerEstadoParametro(estadoCanonico) {
+        if (typeof estadoCanonico !== "string") {
+            return "";
+        }
+
+        const limpio = estadoCanonico.trim();
+        if (!limpio) {
+            return "";
+        }
+
+        return ESTADO_FORM_VALUE_MAP.get(limpio) || limpio;
+    }
+
     function obtenerValorFormularioDesdeEstado(estado) {
         return ESTADO_FORM_VALUE_MAP.get(estado) || estado;
     }
@@ -280,10 +293,13 @@
             limpiar(filtros.hasta || filtros.fecha_hasta || "") || "";
         const estadoEntrada = limpiar(filtros.estado || "");
         const estadoConsulta = obtenerEstadoConsulta(estadoEntrada);
+        const estadoParametro = obtenerEstadoParametro(
+            estadoConsulta || estadoEntrada
+        );
 
         const parametrosConsulta = {};
-        if (estadoConsulta) {
-            parametrosConsulta.estado = estadoConsulta;
+        if (estadoParametro) {
+            parametrosConsulta.estado = estadoParametro;
         }
         if (zona) {
             parametrosConsulta.zona = zona;
@@ -297,6 +313,7 @@
 
         return {
             estado: estadoConsulta,
+            estado_parametro: estadoParametro,
             zona,
             desde,
             hasta,
@@ -453,15 +470,19 @@
     }
 
     function cargarDenunciasPorEstado(estadoDeseado) {
-        const estadoConsulta = obtenerEstadoConsulta(estadoDeseado);
+        const estadoCanonico = obtenerEstadoConsulta(estadoDeseado);
+        const estadoParametro = obtenerEstadoParametro(
+            estadoCanonico || estadoDeseado
+        );
 
         if (filtrosForm && filtrosForm.estado) {
             filtrosForm.estado.value =
-                obtenerValorFormularioDesdeEstado(estadoConsulta);
+                obtenerValorFormularioDesdeEstado(estadoParametro);
         }
 
         const filtrosActuales = obtenerFiltrosDesdeFormulario();
-        filtrosActuales.estado = estadoConsulta || "";
+        filtrosActuales.estado = estadoCanonico || "";
+        filtrosActuales.estado_parametro = estadoParametro;
 
         return cargarMapaConDatos(filtrosActuales);
     }
