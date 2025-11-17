@@ -38,7 +38,7 @@ class RegistroUsuarioForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
-            css_class = "register-input"
+            css_class = "auth-input"
             existing_classes = field.widget.attrs.get("class", "")
             field.widget.attrs["class"] = f"{existing_classes} {css_class}".strip()
 
