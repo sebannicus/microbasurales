@@ -40,10 +40,50 @@ class DenunciaListCreateView(APIView):
 
     def get(self, request, *args, **kwargs):
         queryset = Denuncia.objects.select_related("usuario").all()
+
+        queryset = self._aplicar_filtros(request, queryset)
+
         serializer = DenunciaSerializer(
             queryset, many=True, context={"request": request}
         )
         return Response(serializer.data)
+
+    def _aplicar_filtros(self, request, queryset):
+        params = request.query_params
+
+        estado = (params.get("estado") or "").strip()
+        if estado:
+            queryset = queryset.filter(estado__iexact=estado)
+
+        zona = (params.get("zona") or "").strip()
+        if zona:
+            queryset = queryset.filter(zona__iexact=zona)
+
+        fecha_desde = self._obtener_fecha(params, "fecha_desde", "desde")
+        if fecha_desde:
+            queryset = queryset.filter(fecha_creacion__date__gte=fecha_desde)
+
+        fecha_hasta = self._obtener_fecha(params, "fecha_hasta", "hasta")
+        if fecha_hasta:
+            queryset = queryset.filter(fecha_creacion__date__lte=fecha_hasta)
+
+        return queryset.order_by("-fecha_creacion")
+
+    def _obtener_fecha(self, params, *nombres):
+        for nombre in nombres:
+            valor = (params.get(nombre) or "").strip()
+            if not valor:
+                continue
+
+            fecha = parse_date(valor)
+            if fecha:
+                return fecha
+
+            raise ValidationError(
+                {nombre: "Formato de fecha inválido. Usa AAAA-MM-DD."}
+            )
+
+        return None
 
     def post(self, request, *args, **kwargs):
         descripcion = request.data.get("descripcion", "").strip()

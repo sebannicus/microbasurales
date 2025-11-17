@@ -78,13 +78,36 @@
         return estadosMap.get(valor);
     }
 
+    function obtenerColorPorEstado(estado) {
+        const config = estado ? obtenerConfigEstado(estado) : null;
+        return (config && config.color) || DEFAULT_MARKER_COLOR;
+    }
+
     function obtenerColorDenuncia(denuncia) {
         if (denuncia && denuncia.color) {
             return denuncia.color;
         }
 
-        const config = denuncia ? obtenerConfigEstado(denuncia.estado) : null;
-        return (config && config.color) || DEFAULT_MARKER_COLOR;
+        return obtenerColorPorEstado(denuncia ? denuncia.estado : null);
+    }
+
+    function iconoSegunEstado(estado) {
+        const clave = estado || "__default__";
+        if (iconosPorEstado.has(clave)) {
+            return iconosPorEstado.get(clave);
+        }
+
+        const color = obtenerColorPorEstado(estado);
+        const icono = L.divIcon({
+            className: "denuncia-marker",
+            html: `<span class="marker-estado" style="background-color: ${color};"></span>`,
+            iconSize: [22, 22],
+            iconAnchor: [11, 22],
+            popupAnchor: [0, -22],
+        });
+
+        iconosPorEstado.set(clave, icono);
+        return icono;
     }
 
     function obtenerEtiquetaEstado(denuncia) {
@@ -160,8 +183,9 @@
         maxZoom: 19,
     }).addTo(map);
 
-    const markerLayer = L.layerGroup().addTo(map);
+    const capaDenuncias = L.layerGroup().addTo(map);
     const marcadoresPorId = new Map();
+    const iconosPorEstado = new Map();
     let filtrosActivos = {};
 
     function obtenerFiltrosDesdeFormulario() {
@@ -237,7 +261,7 @@
     async function cargarMapaConDatos(filtros = {}) {
         const filtrosNormalizados = normalizarFiltros(filtros);
         filtrosActivos = filtrosNormalizados;
-        markerLayer.clearLayers();
+        capaDenuncias.clearLayers();
         marcadoresPorId.clear();
 
         try {
@@ -366,18 +390,13 @@
             return;
         }
 
-        const color = obtenerColorDenuncia(denuncia);
-
-        const marker = L.circleMarker([denuncia.latitud, denuncia.longitud], {
-            radius: 10,
-            fillColor: color,
-            color: "#ffffff",
-            weight: 2,
-            fillOpacity: 0.9,
+        const marker = L.marker([denuncia.latitud, denuncia.longitud], {
+            icon: iconoSegunEstado(denuncia.estado),
+            title: `#${denuncia.id} · ${obtenerEtiquetaEstado(denuncia)}`,
         });
 
         marker.bindPopup(construirPopup(denuncia));
-        markerLayer.addLayer(marker);
+        capaDenuncias.addLayer(marker);
         marcadoresPorId.set(Number(denuncia.id), marker);
         bounds.push([denuncia.latitud, denuncia.longitud]);
     }
