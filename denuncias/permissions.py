@@ -2,6 +2,8 @@
 
 from rest_framework import permissions
 
+from .models import Denuncia
+
 
 class IsFuncionarioMunicipal(permissions.BasePermission):
     """Permite el acceso a personal autorizado para gestionar denuncias."""
@@ -21,3 +23,20 @@ class IsFuncionarioMunicipal(permissions.BasePermission):
             puede_gestionar = getattr(user, "es_funcionario_municipal", False)
 
         return bool(puede_gestionar)
+
+
+class PuedeEditarDenunciasFinalizadas(permissions.BasePermission):
+    """Restringe la edición de denuncias finalizadas a administradores."""
+
+    message = (
+        "Solo cuentas administradoras pueden modificar una denuncia finalizada."
+    )
+
+    def has_object_permission(self, request, view, obj):
+        if not isinstance(obj, Denuncia):
+            return True
+
+        if obj.estado != Denuncia.EstadoDenuncia.RESUELTA:
+            return True
+
+        return bool(getattr(request.user, "es_administrador", False))

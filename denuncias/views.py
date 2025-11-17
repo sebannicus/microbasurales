@@ -13,8 +13,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Denuncia
-from .permissions import IsFuncionarioMunicipal
+from .models import Denuncia, EstadoDenuncia
+from .permissions import IsFuncionarioMunicipal, PuedeEditarDenunciasFinalizadas
 from .serializers import DenunciaAdminSerializer, DenunciaSerializer
 
 
@@ -129,9 +129,10 @@ class DenunciaAdminListView(generics.ListAPIView):
         estado = self.request.query_params.get("estado")
         if estado:
             estado_normalizado = estado.lower()
-            if estado_normalizado == "finalizado":
+            if estado_normalizado in {"finalizado", "finalizada"}:
                 queryset = queryset.filter(
                     Q(estado__iexact="finalizado")
+                    | Q(estado__iexact="finalizada")
                     | Q(estado=Denuncia.EstadoDenuncia.RESUELTA)
                 )
             else:
@@ -147,6 +148,7 @@ class DenunciaAdminListView(generics.ListAPIView):
             if valor_normalizado in {"1", "true", "t", "yes", "on"}:
                 queryset = queryset.exclude(
                     Q(estado__iexact="finalizado")
+                    | Q(estado__iexact="finalizada")
                     | Q(estado=Denuncia.EstadoDenuncia.RESUELTA)
                 )
 
@@ -174,7 +176,11 @@ class DenunciaAdminUpdateView(generics.UpdateAPIView):
     """Permite actualizar estado y cuadrilla de una denuncia."""
 
     serializer_class = DenunciaAdminSerializer
-    permission_classes = [permissions.IsAuthenticated, IsFuncionarioMunicipal]
+    permission_classes = [
+        permissions.IsAuthenticated,
+        IsFuncionarioMunicipal,
+        PuedeEditarDenunciasFinalizadas,
+    ]
     queryset = Denuncia.objects.select_related("usuario").all()
     http_method_names = ["patch", "put"]
 
@@ -202,6 +208,8 @@ def _construir_panel_context(request, *, solo_activos=False, solo_finalizados=Fa
     """Genera el contexto para el panel de fiscalizadores con filtros personalizados."""
 
     refresh = RefreshToken.for_user(request.user)
+    estados_config = EstadoDenuncia.as_config()
+    estados_por_valor = {estado["value"]: estado for estado in estados_config}
     try:
         zonas_disponibles = (
             Denuncia.objects.exclude(zona="")
@@ -220,7 +228,7 @@ def _construir_panel_context(request, *, solo_activos=False, solo_finalizados=Fa
     query_params = {}
 
     if solo_finalizados:
-        query_params["estado"] = "finalizado"
+        query_params["estado"] = Denuncia.EstadoDenuncia.RESUELTA
     elif solo_activos:
         query_params["solo_activos"] = "1"
 
@@ -235,6 +243,8 @@ def _construir_panel_context(request, *, solo_activos=False, solo_finalizados=Fa
             reverse("denuncias_admin_update", args=[0])
         ),
         "zonas_disponibles": zonas_disponibles,
+        "estados_config": estados_config,
+        "estados_por_valor": estados_por_valor,
         "solo_activos": bool(solo_activos and not solo_finalizados),
         "solo_finalizados": bool(solo_finalizados),
     }

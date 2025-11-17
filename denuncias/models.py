@@ -2,9 +2,39 @@ from django.db import models
 from django.conf import settings
 
 class EstadoDenuncia(models.TextChoices):
-    PENDIENTE = 'pendiente', 'Pendiente'
-    EN_PROCESO = 'en_proceso', 'En proceso'
-    RESUELTA = 'resuelta', 'Resuelta'
+    PENDIENTE = "pendiente", "Nueva"
+    EN_PROCESO = "en_proceso", "En gestión"
+    RESUELTA = "resuelta", "Finalizada"
+
+    COLOR_DEFAULT = "#1d3557"
+
+    @classmethod
+    def color_map(cls):
+        """Retorna el mapa de colores configurado para cada estado."""
+
+        return _ESTADO_DENUNCIA_COLOR_MAP
+
+    @classmethod
+    def get_color(cls, estado):
+        """Obtiene el color asociado al estado solicitado."""
+
+        return cls.color_map().get(estado, cls.COLOR_DEFAULT)
+
+    @classmethod
+    def as_config(cls):
+        """Entrega la configuración serializable de estados y colores."""
+
+        return [
+            {"value": value, "label": label, "color": cls.get_color(value)}
+            for value, label in cls.choices
+        ]
+
+
+_ESTADO_DENUNCIA_COLOR_MAP = {
+    EstadoDenuncia.PENDIENTE: "#d32f2f",
+    EstadoDenuncia.EN_PROCESO: "#f57c00",
+    EstadoDenuncia.RESUELTA: "#388e3c",
+}
 
 
 class Denuncia(models.Model):
