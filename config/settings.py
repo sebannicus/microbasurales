@@ -23,9 +23,35 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ========================================
 # SECURITY
 # ========================================
-SECRET_KEY = 'django-insecure-8mfqtdhgfp1-@pum^ehx9pxp*=n5-bcezcr897vazgn(ji$gc^'
-DEBUG = True
-ALLOWED_HOSTS = []
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    'django-insecure-8mfqtdhgfp1-@pum^ehx9pxp*=n5-bcezcr897vazgn(ji$gc^',
+)
+
+
+def str_to_bool(value: str, default: bool = False) -> bool:
+    """Convert env strings such as 'true' or '1' to bool."""
+
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "t", "yes", "y"}
+
+
+DEBUG = str_to_bool(os.environ.get("DJANGO_DEBUG", "True"), default=True)
+
+_default_hosts = "localhost,127.0.0.1,christiangalindez.pythonanywhere.com"
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", _default_hosts).split(",")
+    if host.strip()
+]
+
+# Needed so that Django accepts POSTs coming from the public domain on PythonAnywhere
+CSRF_TRUSTED_ORIGINS = [
+    f"https://{host}"
+    for host in ALLOWED_HOSTS
+    if host not in {"localhost", "127.0.0.1"} and not host.startswith(".")
+]
 
 # ========================================
 # APPLICATIONS
@@ -91,16 +117,42 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # ========================================
 # DATABASE
 # ========================================
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'microbasurales',
-        'USER': 'postgres',
-        'PASSWORD': '30102897',
-        'HOST': 'localhost',
-        'PORT': '5432',
+db_engine = os.environ.get("DB_ENGINE", "postgresql").lower()
+
+if db_engine == "sqlite":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / os.environ.get("SQLITE_NAME", "db.sqlite3"),
+        }
     }
-}
+elif db_engine == "mysql":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": os.environ.get("DB_NAME", "microbasurales"),
+            "USER": os.environ.get("DB_USER", "root"),
+            "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+            "HOST": os.environ.get(
+                "DB_HOST", "christiangalindez.mysql.pythonanywhere-services.com"
+            ),
+            "PORT": os.environ.get("DB_PORT", "3306"),
+            "OPTIONS": {
+                "charset": os.environ.get("DB_CHARSET", "utf8mb4"),
+            },
+        }
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("DB_NAME", "microbasurales"),
+            "USER": os.environ.get("DB_USER", "postgres"),
+            "PASSWORD": os.environ.get("DB_PASSWORD", "30102897"),
+            "HOST": os.environ.get("DB_HOST", "localhost"),
+            "PORT": os.environ.get("DB_PORT", "5432"),
+        }
+    }
 
 
 # ========================================
