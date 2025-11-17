@@ -19,6 +19,9 @@
 
     const estadoTabs = document.querySelectorAll(".estado-tab");
     const estadoPaneles = document.querySelectorAll(".estado-panel");
+    const btnNueva = document.getElementById("btnNueva");
+    const btnGestion = document.getElementById("btnGestion");
+    const btnFinalizada = document.getElementById("btnFinalizada");
 
     if (sinDenunciasRow) {
         sinDenunciasRow.remove();
@@ -65,9 +68,36 @@
         }
     }
 
+    function normalizarTextoBasico(texto) {
+        if (typeof texto !== "string") {
+            return "";
+        }
+
+        return texto
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .trim();
+    }
+
     const estadosMap = new Map(
         estadosConfig.map((estado) => [estado.value, estado])
     );
+    const estadoLabelToValue = new Map();
+    const estadoValueNormalizedMap = new Map();
+
+    estadosConfig.forEach(({ value, label }) => {
+        const labelKey = normalizarTextoBasico(label);
+        const valueKey = normalizarTextoBasico(value);
+
+        if (labelKey && !estadoLabelToValue.has(labelKey)) {
+            estadoLabelToValue.set(labelKey, value);
+        }
+
+        if (valueKey && !estadoValueNormalizedMap.has(valueKey)) {
+            estadoValueNormalizedMap.set(valueKey, value);
+        }
+    });
     const DEFAULT_MARKER_COLOR = "#1d3557";
     const ESTADO_DEFECTO =
         (estadosMap.has("pendiente")
@@ -157,23 +187,6 @@
         });
     }
 
-    estadoTabs.forEach((tab) => {
-        tab.addEventListener("click", () => {
-            const estadoObjetivo = tab.dataset.estado || "";
-
-            if (filtrosForm && filtrosForm.estado) {
-                filtrosForm.estado.value = estadoObjetivo;
-            }
-
-            activarTab(estadoObjetivo);
-
-            cargarMapaConDatos({
-                ...obtenerFiltrosDesdeFormulario(),
-                estado: estadoObjetivo,
-            });
-        });
-    });
-
     const map = L.map("mapa-denuncias", {
         scrollWheelZoom: true,
     }).setView([-33.4507, -70.6671], 12);
@@ -190,7 +203,9 @@
 
     function obtenerFiltrosDesdeFormulario() {
         if (!filtrosForm) {
-            return { ...filtrosActivos };
+            const { _parametrosConsulta, estado_parametro, ...resto } =
+                filtrosActivos || {};
+            return { ...resto };
         }
 
         const obtenerValorSeguro = (campo) =>
@@ -204,11 +219,41 @@
         };
     }
 
+    function normalizarEstadoValor(estadoEntrada) {
+        const entradaLimpia =
+            typeof estadoEntrada === "string"
+                ? estadoEntrada.trim()
+                : estadoEntrada;
+
+        if (!entradaLimpia) {
+            return "";
+        }
+
+        if (estadosMap.has(entradaLimpia)) {
+            return entradaLimpia;
+        }
+
+        const claveNormalizada = normalizarTextoBasico(entradaLimpia);
+
+        if (estadoLabelToValue.has(claveNormalizada)) {
+            return estadoLabelToValue.get(claveNormalizada);
+        }
+
+        if (estadoValueNormalizedMap.has(claveNormalizada)) {
+            return estadoValueNormalizedMap.get(claveNormalizada);
+        }
+
+        return entradaLimpia;
+    }
+
     function normalizarFiltros(filtros = {}) {
         const limpiar = (valor) =>
             typeof valor === "string" ? valor.trim() : valor;
 
         const normalizados = { ...filtros };
+
+        delete normalizados._parametrosConsulta;
+        delete normalizados.estado_parametro;
 
         if (!normalizados.desde && normalizados.fecha_desde) {
             normalizados.desde = normalizados.fecha_desde;
@@ -217,30 +262,38 @@
             normalizados.hasta = normalizados.fecha_hasta;
         }
 
-        normalizados.estado = limpiar(normalizados.estado || "");
-        normalizados.zona = limpiar(normalizados.zona || "");
-        normalizados.desde = limpiar(normalizados.desde || "");
-        normalizados.hasta = limpiar(normalizados.hasta || "");
+        const estadoEntrada = limpiar(normalizados.estado || "");
+        const zona = limpiar(normalizados.zona || "");
+        const desde = limpiar(normalizados.desde || "");
+        const hasta = limpiar(normalizados.hasta || "");
+
+        const estadoNormalizado = normalizarEstadoValor(estadoEntrada);
+        normalizados.estado = estadoNormalizado;
+        normalizados.estado_parametro = estadoEntrada || estadoNormalizado;
+        normalizados.zona = zona;
+        normalizados.desde = desde;
+        normalizados.hasta = hasta;
 
         delete normalizados.fecha_desde;
         delete normalizados.fecha_hasta;
 
+        const parametrosConsulta = {};
+        if (normalizados.estado_parametro) {
+            parametrosConsulta.estado = normalizados.estado_parametro;
+        }
+        if (zona) {
+            parametrosConsulta.zona = zona;
+        }
+        if (desde) {
+            parametrosConsulta.desde = desde;
+        }
+        if (hasta) {
+            parametrosConsulta.hasta = hasta;
+        }
+
+        normalizados._parametrosConsulta = parametrosConsulta;
+
         return normalizados;
-    }
-
-    function obtenerEstadoInicialDesdeApi() {
-        if (!apiUrl) {
-            return "";
-        }
-
-        try {
-            const url = new URL(apiUrl);
-            return url.searchParams.get("estado") || "";
-        } catch (error) {
-            console.warn("No fue posible determinar el estado inicial", error);
-        }
-
-        return "";
     }
 
     function obtenerCSRFToken() {
@@ -265,7 +318,9 @@
         marcadoresPorId.clear();
 
         try {
-            const filtrosValidos = Object.entries(filtrosNormalizados).filter(
+            const parametrosConsulta =
+                filtrosNormalizados._parametrosConsulta || {};
+            const filtrosValidos = Object.entries(parametrosConsulta).filter(
                 ([, value]) =>
                     value !== undefined &&
                     value !== null &&
@@ -383,6 +438,19 @@
                 contadorResueltas
             );
         }
+    }
+
+    function cargarDenunciasPorEstado(estadoDeseado) {
+        const estadoNormalizado = normalizarEstadoValor(estadoDeseado);
+
+        if (filtrosForm && filtrosForm.estado) {
+            filtrosForm.estado.value = estadoNormalizado;
+        }
+
+        const filtrosActuales = obtenerFiltrosDesdeFormulario();
+        filtrosActuales.estado = estadoDeseado;
+
+        return cargarMapaConDatos(filtrosActuales);
     }
 
     function agregarMarcador(denuncia, bounds) {
@@ -800,12 +868,19 @@
         });
     }
 
-    const estadoInicial = obtenerEstadoInicialDesdeApi() || ESTADO_DEFECTO;
-    const filtrosIniciales = { estado: estadoInicial };
-    if (filtrosForm && filtrosForm.estado) {
-        filtrosForm.estado.value = estadoInicial;
+    if (btnNueva) {
+        btnNueva.onclick = () => cargarDenunciasPorEstado("Nueva");
     }
-    cargarMapaConDatos(filtrosIniciales);
+
+    if (btnGestion) {
+        btnGestion.onclick = () => cargarDenunciasPorEstado("En gestión");
+    }
+
+    if (btnFinalizada) {
+        btnFinalizada.onclick = () => cargarDenunciasPorEstado("Finalizada");
+    }
+
+    cargarDenunciasPorEstado("Nueva");
 
     async function extraerMensajeDeError(respuesta) {
         const generico = "No se pudieron guardar los cambios";

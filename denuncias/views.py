@@ -1,4 +1,5 @@
 import logging
+import unicodedata
 from urllib.parse import urlencode
 
 from django.contrib.auth.decorators import login_required
@@ -51,9 +52,9 @@ class DenunciaListCreateView(APIView):
     def _aplicar_filtros(self, request, queryset):
         params = request.query_params
 
-        estado = (params.get("estado") or "").strip()
+        estado = self._normalizar_estado(params.get("estado"))
         if estado:
-            queryset = queryset.filter(estado__iexact=estado)
+            queryset = queryset.filter(estado=estado)
 
         zona = (params.get("zona") or "").strip()
         if zona:
@@ -84,6 +85,37 @@ class DenunciaListCreateView(APIView):
             )
 
         return None
+
+    def _normalizar_estado(self, valor):
+        estado = (valor or "").strip()
+        if not estado:
+            return ""
+
+        equivalencias = dict(Denuncia.EstadoDenuncia.choices)
+        if estado in equivalencias:
+            return estado
+
+        estado_normalizado = estado.lower()
+        for key in equivalencias:
+            if estado_normalizado == key.lower():
+                return key
+
+        estado_sin_tildes = self._normalizar_texto(estado)
+        for key, label in Denuncia.EstadoDenuncia.choices:
+            if estado_sin_tildes == self._normalizar_texto(label):
+                return key
+
+        return estado
+
+    def _normalizar_texto(self, texto):
+        if not texto:
+            return ""
+
+        texto_normalizado = unicodedata.normalize("NFD", texto)
+        texto_sin_tildes = "".join(
+            char for char in texto_normalizado if unicodedata.category(char) != "Mn"
+        )
+        return texto_sin_tildes.strip().lower()
 
     def post(self, request, *args, **kwargs):
         descripcion = request.data.get("descripcion", "").strip()

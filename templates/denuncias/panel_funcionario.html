@@ -190,15 +190,15 @@
                                 <small class="text-muted">Selecciona el estado que deseas revisar.</small>
                             </div>
                             <div class="btn-group btn-group-sm estado-tabs" role="group" aria-label="Filtrar por estado">
-                                <button type="button" class="btn btn-outline-secondary active estado-tab" data-estado="pendiente">
+                                <button type="button" id="btnNueva" class="btn btn-outline-secondary active estado-tab" data-estado="pendiente">
                                     {{ estados_por_valor.pendiente.label|default:"Nuevas" }}
                                     <span class="badge bg-secondary ms-1" id="contador-pendientes">0</span>
                                 </button>
-                                <button type="button" class="btn btn-outline-secondary estado-tab" data-estado="en_proceso">
+                                <button type="button" id="btnGestion" class="btn btn-outline-secondary estado-tab" data-estado="en_proceso">
                                     {{ estados_por_valor.en_proceso.label|default:"En gestión" }}
                                     <span class="badge bg-secondary ms-1" id="contador-en-proceso">0</span>
                                 </button>
-                                <button type="button" class="btn btn-outline-secondary estado-tab" data-estado="resuelta">
+                                <button type="button" id="btnFinalizada" class="btn btn-outline-secondary estado-tab" data-estado="resuelta">
                                     {{ estados_por_valor.resuelta.label|default:"Finalizadas" }}
                                     <span class="badge bg-secondary ms-1" id="contador-resueltas">0</span>
                                 </button>
