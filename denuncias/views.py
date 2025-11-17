@@ -25,8 +25,8 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
-ESTADOS_PERMITIDOS = {"Nueva", "En gestión", "Finalizada"}
-ESTADO_FINALIZADA = "Finalizada"
+ESTADOS_PERMITIDOS = set(EstadoDenuncia.values)
+ESTADO_FINALIZADA = EstadoDenuncia.RESUELTA
 
 
 class DenunciasPagination(PageNumberPagination):
