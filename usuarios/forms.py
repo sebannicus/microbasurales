@@ -82,6 +82,32 @@ class UserUpdateForm(forms.ModelForm):
             css_class = field.widget.attrs.get("class", "")
             field.widget.attrs["class"] = f"{css_class} form-control".strip()
 
+    def clean_direccion(self):
+        """Evita que un usuario elimine una dirección previamente guardada."""
+
+        usuario = self.instance
+        nueva_direccion = self.cleaned_data.get("direccion")
+
+        if usuario and usuario.direccion and not nueva_direccion:
+            raise forms.ValidationError(
+                _("La dirección no puede quedar en blanco una vez registrada.")
+            )
+
+        return nueva_direccion
+
+    def clean_telefono(self):
+        """Impide eliminar un teléfono ya registrado."""
+
+        usuario = self.instance
+        nuevo_telefono = self.cleaned_data.get("telefono")
+
+        if usuario and usuario.telefono and not nuevo_telefono:
+            raise forms.ValidationError(
+                _("El teléfono no puede quedar en blanco una vez registrado.")
+            )
+
+        return nuevo_telefono
+
 
 class PasswordChangeCustomForm(forms.Form):
     """Formulario personalizado para actualizar la contraseña del usuario."""
