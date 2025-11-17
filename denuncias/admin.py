@@ -4,7 +4,7 @@ from django.contrib import admin
 
 from usuarios.models import Usuario
 
-from .models import Denuncia, EstadoDenuncia
+from .models import Denuncia, DenunciaNotificacion, EstadoDenuncia
 
 
 @admin.register(Denuncia)
@@ -30,3 +30,10 @@ class DenunciaAdmin(admin.ModelAdmin):
             return queryset.filter(estado=EstadoDenuncia.PENDIENTE)
 
         return queryset
+
+
+@admin.register(DenunciaNotificacion)
+class DenunciaNotificacionAdmin(admin.ModelAdmin):
+    list_display = ("denuncia", "usuario", "estado_nuevo", "leida", "fecha_creacion")
+    list_filter = ("estado_nuevo", "leida", "fecha_creacion")
+    search_fields = ("denuncia__descripcion", "usuario__username")

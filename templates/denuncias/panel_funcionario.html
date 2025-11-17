@@ -78,6 +78,20 @@
             font-weight: 600;
         }
 
+        .denuncia-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .denuncia-marker .marker-estado {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
+        }
+
         .pendientes-card .table th,
         .pendientes-card .table td {
             vertical-align: middle;
@@ -139,9 +153,9 @@
                         <label for="estado" class="form-label">Estado</label>
                         <select id="estado" name="estado" class="form-select">
                             <option value="">Todos</option>
-                            <option value="pendiente">Nuevo</option>
-                            <option value="en_proceso">En gestión</option>
-                            <option value="resuelta">Resuelto</option>
+                            {% for estado in estados_config %}
+                                <option value="{{ estado.value }}">{{ estado.label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="col-12">
@@ -176,16 +190,16 @@
                                 <small class="text-muted">Selecciona el estado que deseas revisar.</small>
                             </div>
                             <div class="btn-group btn-group-sm estado-tabs" role="group" aria-label="Filtrar por estado">
-                                <button type="button" class="btn btn-outline-secondary active estado-tab" data-estado="pendiente">
-                                    Pendientes
+                                <button type="button" id="btnNueva" class="btn btn-outline-secondary active estado-tab" data-estado="pendiente">
+                                    {{ estados_por_valor.pendiente.label|default:"Nuevas" }}
                                     <span class="badge bg-secondary ms-1" id="contador-pendientes">0</span>
                                 </button>
-                                <button type="button" class="btn btn-outline-secondary estado-tab" data-estado="en_proceso">
-                                    En proceso
+                                <button type="button" id="btnGestion" class="btn btn-outline-secondary estado-tab" data-estado="en_proceso">
+                                    {{ estados_por_valor.en_proceso.label|default:"En gestión" }}
                                     <span class="badge bg-secondary ms-1" id="contador-en-proceso">0</span>
                                 </button>
-                                <button type="button" class="btn btn-outline-secondary estado-tab" data-estado="resuelta">
-                                    Cerradas
+                                <button type="button" id="btnFinalizada" class="btn btn-outline-secondary estado-tab" data-estado="resuelta">
+                                    {{ estados_por_valor.resuelta.label|default:"Finalizadas" }}
                                     <span class="badge bg-secondary ms-1" id="contador-resueltas">0</span>
                                 </button>
                             </div>
@@ -208,7 +222,7 @@
                                     <tbody id="denuncias-pendientes-body">
                                         <tr id="sin-denuncias-pendientes">
                                             <td colspan="6" class="text-center text-muted py-4">
-                                                No hay denuncias pendientes para mostrar.
+                                                No hay denuncias nuevas para mostrar.
                                             </td>
                                         </tr>
                                     </tbody>
@@ -218,14 +232,14 @@
                         <div class="estado-panel d-none" data-estado="en_proceso">
                             <div class="list-group list-group-flush" id="denuncias-en-proceso-list">
                                 <div class="list-group-item text-muted py-3" id="sin-denuncias-en-proceso">
-                                    No hay denuncias en proceso para mostrar.
+                                    No hay denuncias en gestión para mostrar.
                                 </div>
                             </div>
                         </div>
                         <div class="estado-panel d-none" data-estado="resuelta">
                             <div class="list-group list-group-flush" id="denuncias-resueltas-list">
                                 <div class="list-group-item text-muted py-3" id="sin-denuncias-resueltas">
-                                    No hay denuncias resueltas para mostrar.
+                                    No hay denuncias finalizadas para mostrar.
                                 </div>
                             </div>
                         </div>
@@ -260,6 +274,7 @@
 
 {% block extra_scripts %}
     {{ block.super }}
+    {{ estados_config|json_script:"estados-config" }}
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="{% static 'js/panel_funcionario.js' %}"></script>
 {% endblock extra_scripts %}

@@ -1,21 +1,28 @@
 import logging
+import unicodedata
 from urllib.parse import urlencode
 
 from django.contrib.auth.decorators import login_required
-from django.db import OperationalError, ProgrammingError
+from django.db import OperationalError, ProgrammingError, connection
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.dateparse import parse_date
 from rest_framework import generics, permissions, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Denuncia
-from .permissions import IsFuncionarioMunicipal
-from .serializers import DenunciaAdminSerializer, DenunciaSerializer
+from .models import Denuncia, DenunciaNotificacion, EstadoDenuncia
+from .permissions import IsFuncionarioMunicipal, PuedeEditarDenunciasFinalizadas
+from .serializers import (
+    DenunciaAdminSerializer,
+    DenunciaCiudadanoSerializer,
+    DenunciaSerializer,
+    NotificacionDenunciaSerializer,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -34,10 +41,81 @@ class DenunciaListCreateView(APIView):
 
     def get(self, request, *args, **kwargs):
         queryset = Denuncia.objects.select_related("usuario").all()
+
+        queryset = self._aplicar_filtros(request, queryset)
+
         serializer = DenunciaSerializer(
             queryset, many=True, context={"request": request}
         )
         return Response(serializer.data)
+
+    def _aplicar_filtros(self, request, queryset):
+        params = request.query_params
+
+        estado = self._normalizar_estado(params.get("estado"))
+        if estado:
+            queryset = queryset.filter(estado=estado)
+
+        zona = (params.get("zona") or "").strip()
+        if zona:
+            queryset = queryset.filter(zona__iexact=zona)
+
+        fecha_desde = self._obtener_fecha(params, "fecha_desde", "desde")
+        if fecha_desde:
+            queryset = queryset.filter(fecha_creacion__date__gte=fecha_desde)
+
+        fecha_hasta = self._obtener_fecha(params, "fecha_hasta", "hasta")
+        if fecha_hasta:
+            queryset = queryset.filter(fecha_creacion__date__lte=fecha_hasta)
+
+        return queryset.order_by("-fecha_creacion")
+
+    def _obtener_fecha(self, params, *nombres):
+        for nombre in nombres:
+            valor = (params.get(nombre) or "").strip()
+            if not valor:
+                continue
+
+            fecha = parse_date(valor)
+            if fecha:
+                return fecha
+
+            raise ValidationError(
+                {nombre: "Formato de fecha inválido. Usa AAAA-MM-DD."}
+            )
+
+        return None
+
+    def _normalizar_estado(self, valor):
+        estado = (valor or "").strip()
+        if not estado:
+            return ""
+
+        equivalencias = dict(Denuncia.EstadoDenuncia.choices)
+        if estado in equivalencias:
+            return estado
+
+        estado_normalizado = estado.lower()
+        for key in equivalencias:
+            if estado_normalizado == key.lower():
+                return key
+
+        estado_sin_tildes = self._normalizar_texto(estado)
+        for key, label in Denuncia.EstadoDenuncia.choices:
+            if estado_sin_tildes == self._normalizar_texto(label):
+                return key
+
+        return estado
+
+    def _normalizar_texto(self, texto):
+        if not texto:
+            return ""
+
+        texto_normalizado = unicodedata.normalize("NFD", texto)
+        texto_sin_tildes = "".join(
+            char for char in texto_normalizado if unicodedata.category(char) != "Mn"
+        )
+        return texto_sin_tildes.strip().lower()
 
     def post(self, request, *args, **kwargs):
         descripcion = request.data.get("descripcion", "").strip()
@@ -93,7 +171,7 @@ class DenunciaListCreateView(APIView):
 class MisDenunciasListView(generics.ListAPIView):
     """Lista únicamente las denuncias del usuario autenticado."""
 
-    serializer_class = DenunciaSerializer
+    serializer_class = DenunciaCiudadanoSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -106,7 +184,7 @@ class MisDenunciasListView(generics.ListAPIView):
 class MiDenunciaRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     """Permite obtener y actualizar una denuncia propia."""
 
-    serializer_class = DenunciaSerializer
+    serializer_class = DenunciaCiudadanoSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -117,7 +195,10 @@ class MiDenunciaRetrieveUpdateView(generics.RetrieveUpdateAPIView):
 
 
 class DenunciaAdminListView(generics.ListAPIView):
-    """Lista de denuncias con filtros para funcionarios municipales."""
+    """Lista de denuncias con filtros para funcionarios municipales.
+
+    Ejemplo: ``/api/denuncias/?estado=pendiente&zona=Centro&desde=2024-01-01&hasta=2024-01-31``
+    """
 
     serializer_class = DenunciaAdminSerializer
     permission_classes = [permissions.IsAuthenticated, IsFuncionarioMunicipal]
@@ -129,9 +210,10 @@ class DenunciaAdminListView(generics.ListAPIView):
         estado = self.request.query_params.get("estado")
         if estado:
             estado_normalizado = estado.lower()
-            if estado_normalizado == "finalizado":
+            if estado_normalizado in {"finalizado", "finalizada"}:
                 queryset = queryset.filter(
                     Q(estado__iexact="finalizado")
+                    | Q(estado__iexact="finalizada")
                     | Q(estado=Denuncia.EstadoDenuncia.RESUELTA)
                 )
             else:
@@ -147,6 +229,7 @@ class DenunciaAdminListView(generics.ListAPIView):
             if valor_normalizado in {"1", "true", "t", "yes", "on"}:
                 queryset = queryset.exclude(
                     Q(estado__iexact="finalizado")
+                    | Q(estado__iexact="finalizada")
                     | Q(estado=Denuncia.EstadoDenuncia.RESUELTA)
                 )
 
@@ -154,11 +237,11 @@ class DenunciaAdminListView(generics.ListAPIView):
         if zona:
             queryset = queryset.filter(zona__iexact=zona)
 
-        fecha_desde = parse_date(self.request.query_params.get("fecha_desde", ""))
+        fecha_desde = self._parse_fecha_param("fecha_desde", "desde")
         if fecha_desde:
             queryset = queryset.filter(fecha_creacion__date__gte=fecha_desde)
 
-        fecha_hasta = parse_date(self.request.query_params.get("fecha_hasta", ""))
+        fecha_hasta = self._parse_fecha_param("fecha_hasta", "hasta")
         if fecha_hasta:
             queryset = queryset.filter(fecha_creacion__date__lte=fecha_hasta)
 
@@ -169,12 +252,34 @@ class DenunciaAdminListView(generics.ListAPIView):
         context["request"] = self.request
         return context
 
+    def _parse_fecha_param(self, *nombres):
+        for nombre in nombres:
+            valor = (self.request.query_params.get(nombre) or "").strip()
+            if not valor:
+                continue
+
+            fecha = parse_date(valor)
+            if fecha:
+                return fecha
+
+            raise ValidationError(
+                {
+                    nombre: "Formato de fecha inválido. Usa AAAA-MM-DD.",
+                }
+            )
+
+        return None
+
 
 class DenunciaAdminUpdateView(generics.UpdateAPIView):
     """Permite actualizar estado y cuadrilla de una denuncia."""
 
     serializer_class = DenunciaAdminSerializer
-    permission_classes = [permissions.IsAuthenticated, IsFuncionarioMunicipal]
+    permission_classes = [
+        permissions.IsAuthenticated,
+        IsFuncionarioMunicipal,
+        PuedeEditarDenunciasFinalizadas,
+    ]
     queryset = Denuncia.objects.select_related("usuario").all()
     http_method_names = ["patch", "put"]
 
@@ -182,6 +287,59 @@ class DenunciaAdminUpdateView(generics.UpdateAPIView):
         context = super().get_serializer_context()
         context["request"] = self.request
         return context
+
+
+def _tabla_notificaciones_disponible():
+    """Verifica si la tabla de notificaciones existe en la base de datos."""
+
+    try:
+        tablas = connection.introspection.table_names()
+    except (ProgrammingError, OperationalError):
+        return False
+    return DenunciaNotificacion._meta.db_table in tablas
+
+
+class MisNotificacionesListView(generics.ListAPIView):
+    """Devuelve las notificaciones de cambio de estado del usuario autenticado."""
+
+    serializer_class = NotificacionDenunciaSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        if not _tabla_notificaciones_disponible():
+            logger.warning(
+                "No se pudieron cargar las notificaciones; ¿ejecutaste las migraciones?",
+                exc_info=True,
+            )
+            return Response([], status=status.HTTP_200_OK)
+        return super().list(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = DenunciaNotificacion.objects.filter(usuario=self.request.user)
+        solo_no_leidas = self.request.query_params.get("solo_no_leidas")
+        if solo_no_leidas is not None:
+            valor = str(solo_no_leidas).lower()
+            if valor in {"1", "true", "t", "yes", "on"}:
+                queryset = queryset.filter(leida=False)
+        return queryset.order_by("-fecha_creacion")
+
+
+class NotificacionActualizarView(generics.UpdateAPIView):
+    """Permite marcar como leídas las notificaciones propias."""
+
+    serializer_class = NotificacionDenunciaSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["patch"]
+
+    def get_queryset(self):
+        if not _tabla_notificaciones_disponible():
+            logger.warning(
+                "No se pudieron actualizar las notificaciones; ¿ejecutaste las migraciones?",
+                exc_info=True,
+            )
+            return DenunciaNotificacion.objects.none()
+
+        return DenunciaNotificacion.objects.filter(usuario=self.request.user)
 
 
 def _usuario_puede_gestionar_denuncias(usuario) -> bool:
@@ -202,6 +360,8 @@ def _construir_panel_context(request, *, solo_activos=False, solo_finalizados=Fa
     """Genera el contexto para el panel de fiscalizadores con filtros personalizados."""
 
     refresh = RefreshToken.for_user(request.user)
+    estados_config = EstadoDenuncia.as_config()
+    estados_por_valor = {estado["value"]: estado for estado in estados_config}
     try:
         zonas_disponibles = (
             Denuncia.objects.exclude(zona="")
@@ -220,7 +380,7 @@ def _construir_panel_context(request, *, solo_activos=False, solo_finalizados=Fa
     query_params = {}
 
     if solo_finalizados:
-        query_params["estado"] = "finalizado"
+        query_params["estado"] = Denuncia.EstadoDenuncia.RESUELTA
     elif solo_activos:
         query_params["solo_activos"] = "1"
 
@@ -235,6 +395,8 @@ def _construir_panel_context(request, *, solo_activos=False, solo_finalizados=Fa
             reverse("denuncias_admin_update", args=[0])
         ),
         "zonas_disponibles": zonas_disponibles,
+        "estados_config": estados_config,
+        "estados_por_valor": estados_por_valor,
         "solo_activos": bool(solo_activos and not solo_finalizados),
         "solo_finalizados": bool(solo_finalizados),
     }

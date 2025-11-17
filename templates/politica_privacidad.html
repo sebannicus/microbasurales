@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/auth.css' %}">
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.title = 'Política de Privacidad | Tu Barrio Limpio';
+    });
+</script>
+{% endblock extra_head %}
+
+{% block menu %}{% endblock %}
+{% block aside %}{% endblock %}
+
+{% block contenido %}
+<div class="auth-background"></div>
+<div class="auth-overlay"></div>
+
+<div class="container auth-container">
+
+    <div class="auth-header">
+        <h1>Tu Barrio Limpio</h1>
+        <p>Tu Barrio Limpio y ayuda a reportar, monitorear y resolver los focos de microbasurales en tu comunidad.</p>
+    </div>
+
+    <div class="mx-auto auth-card" style="max-width: 900px;">
+        <div class="auth-box text-start">
+        <h2 class="mb-4 text-center">Política de Privacidad</h2>
+        <p class="text-muted">Última actualización: {% now "d \d\e F \d\e Y" %}</p>
+
+        <section class="mb-4">
+            <h3>Principios Generales</h3>
+            <p>En Tu Barrio Limpio valoramos la confianza de la ciudadanía. Tratamos los datos personales siguiendo los principios de licitud, lealtad, transparencia, minimización y confidencialidad, conforme a la legislación chilena y las mejores prácticas internacionales.</p>
+        </section>
+
+        <section class="mb-4">
+            <h3>Datos que Recopilamos</h3>
+            <p>Solicitamos datos de identificación básica (nombre de usuario, correo electrónico) y la información que el ciudadano entregue voluntariamente al registrar un reporte. Estos datos permiten autenticar la cuenta, mantener la trazabilidad de los reportes y comunicarnos contigo cuando sea necesario.</p>
+        </section>
+
+        <section class="mb-4">
+            <h3>Finalidad del Tratamiento</h3>
+            <p>Utilizamos los datos exclusivamente para gestionar la plataforma, enviar notificaciones relevantes, mejorar los servicios municipales y garantizar el seguimiento de los reportes ingresados. No compartimos datos con terceros ajenos al municipio salvo obligación legal.</p>
+        </section>
+
+        <section class="mb-4">
+            <h3>Derechos de los Usuarios</h3>
+            <p>Las personas registradas pueden solicitar el acceso, rectificación, actualización o eliminación de sus datos. Para ejercer estos derechos escribe a <a href="mailto:contacto@tubarriolimpio.cl">contacto@tubarriolimpio.cl</a>. Responderemos tus solicitudes en los plazos establecidos por la normativa.</p>
+        </section>
+
+        <section class="mb-4">
+            <h3>Conservación y Seguridad</h3>
+            <p>Conservamos los datos únicamente durante el tiempo necesario para cumplir con las finalidades descritas. Aplicamos medidas técnicas y organizativas para prevenir accesos no autorizados, pérdida de información o alteraciones indebidas.</p>
+        </section>
+
+        <section>
+            <h3>Actualizaciones</h3>
+            <p>Podemos actualizar esta política para reflejar cambios normativos o mejoras del servicio. Te notificaremos mediante la plataforma cuando se apliquen modificaciones sustantivas.</p>
+        </section>
+        </div>
+    </div>
+</div>
+
+<footer class="text-center py-3 auth-footer">
+    <small>
+        © {% now "Y" %} Tu Barrio Limpio. Todos los derechos reservados. |
+        <a href="mailto:contacto@tubarriolimpio.cl">contacto@tubarriolimpio.cl</a> |
+        <a href="{% url 'aviso_legal' %}">Aviso Legal</a> |
+        <a href="{% url 'politica_privacidad' %}">Política de Privacidad</a>
+    </small>
+</footer>
+{% endblock %}

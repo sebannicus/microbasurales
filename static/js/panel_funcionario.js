@@ -19,6 +19,9 @@
 
     const estadoTabs = document.querySelectorAll(".estado-tab");
     const estadoPaneles = document.querySelectorAll(".estado-panel");
+    const btnNueva = document.getElementById("btnNueva");
+    const btnGestion = document.getElementById("btnGestion");
+    const btnFinalizada = document.getElementById("btnFinalizada");
 
     if (sinDenunciasRow) {
         sinDenunciasRow.remove();
@@ -46,28 +49,124 @@
         sinResueltasElemento.remove();
     }
 
-    const ESTADO_COLORES = {
-        pendiente: "#d62828",
-        en_proceso: "#f77f00",
-        resuelta: "#2b9348",
-    };
+    const estadosConfigElement = document.getElementById("estados-config");
+    const DEFAULT_ESTADOS_CONFIG = [
+        { value: "pendiente", label: "Nueva", color: "#d32f2f" },
+        { value: "en_proceso", label: "En gestión", color: "#f57c00" },
+        { value: "resuelta", label: "Finalizada", color: "#388e3c" },
+    ];
 
-    const ESTADO_LABELS = {
-        pendiente: "Nuevo",
-        en_proceso: "En gestión",
-        resuelta: "Resuelto",
-    };
+    let estadosConfig = DEFAULT_ESTADOS_CONFIG;
+    if (estadosConfigElement) {
+        try {
+            const parsed = JSON.parse(estadosConfigElement.textContent || "");
+            if (Array.isArray(parsed) && parsed.length) {
+                estadosConfig = parsed;
+            }
+        } catch (error) {
+            console.warn("No fue posible interpretar la configuración de estados", error);
+        }
+    }
+
+    function normalizarTextoBasico(texto) {
+        if (typeof texto !== "string") {
+            return "";
+        }
+
+        return texto
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .trim();
+    }
+
+    const estadosMap = new Map(
+        estadosConfig.map((estado) => [estado.value, estado])
+    );
+    const estadoLabelToValue = new Map();
+    const estadoValueNormalizedMap = new Map();
+
+    estadosConfig.forEach(({ value, label }) => {
+        const labelKey = normalizarTextoBasico(label);
+        const valueKey = normalizarTextoBasico(value);
+
+        if (labelKey && !estadoLabelToValue.has(labelKey)) {
+            estadoLabelToValue.set(labelKey, value);
+        }
+
+        if (valueKey && !estadoValueNormalizedMap.has(valueKey)) {
+            estadoValueNormalizedMap.set(valueKey, value);
+        }
+    });
+    const DEFAULT_MARKER_COLOR = "#1d3557";
+    const ESTADO_DEFECTO =
+        (estadosMap.has("pendiente")
+            ? "pendiente"
+            : estadosConfig[0] && estadosConfig[0].value) || "pendiente";
+
+    function obtenerConfigEstado(valor) {
+        return estadosMap.get(valor);
+    }
+
+    function obtenerColorPorEstado(estado) {
+        const config = estado ? obtenerConfigEstado(estado) : null;
+        return (config && config.color) || DEFAULT_MARKER_COLOR;
+    }
+
+    function obtenerColorDenuncia(denuncia) {
+        if (denuncia && denuncia.color) {
+            return denuncia.color;
+        }
+
+        return obtenerColorPorEstado(denuncia ? denuncia.estado : null);
+    }
+
+    function iconoSegunEstado(estado) {
+        const clave = estado || "__default__";
+        if (iconosPorEstado.has(clave)) {
+            return iconosPorEstado.get(clave);
+        }
+
+        const color = obtenerColorPorEstado(estado);
+        const icono = L.divIcon({
+            className: "denuncia-marker",
+            html: `<span class="marker-estado" style="background-color: ${color};"></span>`,
+            iconSize: [22, 22],
+            iconAnchor: [11, 22],
+            popupAnchor: [0, -22],
+        });
+
+        iconosPorEstado.set(clave, icono);
+        return icono;
+    }
+
+    function obtenerEtiquetaEstado(denuncia) {
+        if (!denuncia) {
+            return "";
+        }
+
+        if (denuncia.estado_display) {
+            return denuncia.estado_display;
+        }
+
+        const config = obtenerConfigEstado(denuncia.estado);
+        if (config && config.label) {
+            return config.label;
+        }
+
+        return denuncia.estado;
+    }
 
     function activarTab(estadoObjetivo) {
         if (!estadoObjetivo) {
-            estadoObjetivo = "pendiente";
+            estadoObjetivo = ESTADO_DEFECTO;
         }
 
         const estadoExiste = Array.from(estadoTabs).some(
             (tab) => tab.dataset.estado === estadoObjetivo
         );
 
-        const estadoActivo = estadoExiste ? estadoObjetivo : "pendiente";
+        const estadoActivo = estadoExiste ? estadoObjetivo : ESTADO_DEFECTO;
 
         estadoTabs.forEach((tab) => {
             if (tab.dataset.estado === estadoActivo) {
@@ -88,12 +187,6 @@
         });
     }
 
-    estadoTabs.forEach((tab) => {
-        tab.addEventListener("click", () => {
-            activarTab(tab.dataset.estado);
-        });
-    });
-
     const map = L.map("mapa-denuncias", {
         scrollWheelZoom: true,
     }).setView([-33.4507, -70.6671], 12);
@@ -103,9 +196,105 @@
         maxZoom: 19,
     }).addTo(map);
 
-    const markerLayer = L.layerGroup().addTo(map);
+    const capaDenuncias = L.layerGroup().addTo(map);
     const marcadoresPorId = new Map();
+    const iconosPorEstado = new Map();
     let filtrosActivos = {};
+
+    function obtenerFiltrosDesdeFormulario() {
+        if (!filtrosForm) {
+            const { _parametrosConsulta, estado_parametro, ...resto } =
+                filtrosActivos || {};
+            return { ...resto };
+        }
+
+        const obtenerValorSeguro = (campo) =>
+            campo && "value" in campo ? campo.value : "";
+
+        return {
+            estado: obtenerValorSeguro(filtrosForm.estado),
+            zona: obtenerValorSeguro(filtrosForm.zona),
+            desde: obtenerValorSeguro(filtrosForm.fecha_desde),
+            hasta: obtenerValorSeguro(filtrosForm.fecha_hasta),
+        };
+    }
+
+    function normalizarEstadoValor(estadoEntrada) {
+        const entradaLimpia =
+            typeof estadoEntrada === "string"
+                ? estadoEntrada.trim()
+                : estadoEntrada;
+
+        if (!entradaLimpia) {
+            return "";
+        }
+
+        if (estadosMap.has(entradaLimpia)) {
+            return entradaLimpia;
+        }
+
+        const claveNormalizada = normalizarTextoBasico(entradaLimpia);
+
+        if (estadoLabelToValue.has(claveNormalizada)) {
+            return estadoLabelToValue.get(claveNormalizada);
+        }
+
+        if (estadoValueNormalizedMap.has(claveNormalizada)) {
+            return estadoValueNormalizedMap.get(claveNormalizada);
+        }
+
+        return entradaLimpia;
+    }
+
+    function normalizarFiltros(filtros = {}) {
+        const limpiar = (valor) =>
+            typeof valor === "string" ? valor.trim() : valor;
+
+        const normalizados = { ...filtros };
+
+        delete normalizados._parametrosConsulta;
+        delete normalizados.estado_parametro;
+
+        if (!normalizados.desde && normalizados.fecha_desde) {
+            normalizados.desde = normalizados.fecha_desde;
+        }
+        if (!normalizados.hasta && normalizados.fecha_hasta) {
+            normalizados.hasta = normalizados.fecha_hasta;
+        }
+
+        const estadoEntrada = limpiar(normalizados.estado || "");
+        const zona = limpiar(normalizados.zona || "");
+        const desde = limpiar(normalizados.desde || "");
+        const hasta = limpiar(normalizados.hasta || "");
+
+        const estadoNormalizado = normalizarEstadoValor(estadoEntrada);
+        normalizados.estado = estadoNormalizado;
+        normalizados.estado_parametro = estadoEntrada || estadoNormalizado;
+        normalizados.zona = zona;
+        normalizados.desde = desde;
+        normalizados.hasta = hasta;
+
+        delete normalizados.fecha_desde;
+        delete normalizados.fecha_hasta;
+
+        const parametrosConsulta = {};
+        if (normalizados.estado_parametro) {
+            parametrosConsulta.estado = normalizados.estado_parametro;
+        }
+        if (zona) {
+            parametrosConsulta.zona = zona;
+        }
+        if (desde) {
+            parametrosConsulta.desde = desde;
+        }
+        if (hasta) {
+            parametrosConsulta.hasta = hasta;
+        }
+
+        normalizados._parametrosConsulta = parametrosConsulta;
+
+        return normalizados;
+    }
 
     function obtenerCSRFToken() {
         const nombre = "csrftoken";
@@ -122,19 +311,30 @@
         return null;
     }
 
-    async function cargarDenuncias(filtros = {}) {
-        filtrosActivos = filtros;
-        markerLayer.clearLayers();
+    async function cargarMapaConDatos(filtros = {}) {
+        const filtrosNormalizados = normalizarFiltros(filtros);
+        filtrosActivos = filtrosNormalizados;
+        capaDenuncias.clearLayers();
         marcadoresPorId.clear();
 
         try {
-            const parametros = new URLSearchParams();
-            Object.entries(filtros)
-                .filter(([, value]) => value)
-                .forEach(([clave, valor]) => parametros.append(clave, valor));
+            const parametrosConsulta =
+                filtrosNormalizados._parametrosConsulta || {};
+            const filtrosValidos = Object.entries(parametrosConsulta).filter(
+                ([, value]) =>
+                    value !== undefined &&
+                    value !== null &&
+                    String(value).trim() !== ""
+            );
 
             let paginaUrl = new URL(apiUrl);
-            paginaUrl.search = parametros.toString();
+            const parametrosBase = new URLSearchParams(paginaUrl.search);
+
+            filtrosValidos.forEach(([clave, valor]) => {
+                parametrosBase.set(clave, valor);
+            });
+
+            paginaUrl.search = parametrosBase.toString();
 
             const bounds = [];
             const pendientes = [];
@@ -213,9 +413,13 @@
                 contadorResueltas,
                 { mostrarEstado: true }
             );
-            activarTab(filtros.estado);
+            activarTab(filtrosNormalizados.estado);
         } catch (error) {
-            console.error(error);
+            console.error(
+                "Error al cargar las denuncias con los filtros",
+                filtrosNormalizados,
+                error
+            );
             mostrarMensajeGlobal(
                 "No se pudieron cargar las denuncias. Intenta nuevamente.",
                 "danger"
@@ -236,23 +440,31 @@
         }
     }
 
+    function cargarDenunciasPorEstado(estadoDeseado) {
+        const estadoNormalizado = normalizarEstadoValor(estadoDeseado);
+
+        if (filtrosForm && filtrosForm.estado) {
+            filtrosForm.estado.value = estadoNormalizado;
+        }
+
+        const filtrosActuales = obtenerFiltrosDesdeFormulario();
+        filtrosActuales.estado = estadoDeseado;
+
+        return cargarMapaConDatos(filtrosActuales);
+    }
+
     function agregarMarcador(denuncia, bounds) {
         if (!denuncia.latitud || !denuncia.longitud) {
             return;
         }
 
-        const color = ESTADO_COLORES[denuncia.estado] || "#1d3557";
-
-        const marker = L.circleMarker([denuncia.latitud, denuncia.longitud], {
-            radius: 10,
-            fillColor: color,
-            color: "#ffffff",
-            weight: 2,
-            fillOpacity: 0.9,
+        const marker = L.marker([denuncia.latitud, denuncia.longitud], {
+            icon: iconoSegunEstado(denuncia.estado),
+            title: `#${denuncia.id} · ${obtenerEtiquetaEstado(denuncia)}`,
         });
 
         marker.bindPopup(construirPopup(denuncia));
-        markerLayer.addLayer(marker);
+        capaDenuncias.addLayer(marker);
         marcadoresPorId.set(Number(denuncia.id), marker);
         bounds.push([denuncia.latitud, denuncia.longitud]);
     }
@@ -268,19 +480,19 @@
             ? new Date(denuncia.fecha_creacion).toLocaleString("es-CL")
             : "Fecha no disponible";
 
-        const options = Object.entries(ESTADO_LABELS)
+        const options = estadosConfig
             .map(
-                ([valor, etiqueta]) =>
-                    `<option value="${valor}" ${
-                        denuncia.estado === valor ? "selected" : ""
-                    }>${etiqueta}</option>`
+                ({ value, label }) =>
+                    `<option value="${value}" ${
+                        denuncia.estado === value ? "selected" : ""
+                    }>${label}</option>`
             )
             .join("");
 
         return `
             <div class="popup-denuncia" data-id="${denuncia.id}">
                 ${imagenHtml}
-                <p class="mb-1"><strong>Estado actual:</strong> <span class="estado-badge" style="color: ${ESTADO_COLORES[denuncia.estado] || "#212529"};">${ESTADO_LABELS[denuncia.estado] || denuncia.estado}</span></p>
+                <p class="mb-1"><strong>Estado actual:</strong> <span class="estado-badge" style="color: ${obtenerColorDenuncia(denuncia)};">${obtenerEtiquetaEstado(denuncia)}</span></p>
                 <p class="mb-1"><strong>Descripción:</strong> ${denuncia.descripcion}</p>
                 <p class="mb-1"><strong>Dirección:</strong> ${direccion}</p>
                 <p class="mb-2"><strong>Zona:</strong> ${zona}</p>
@@ -405,7 +617,7 @@
         if (mostrarEstado) {
             const estadoLabel = document.createElement("div");
             estadoLabel.className = "estado-label text-muted";
-            estadoLabel.textContent = ESTADO_LABELS[denuncia.estado] || denuncia.estado;
+            estadoLabel.textContent = obtenerEtiquetaEstado(denuncia);
             info.appendChild(estadoLabel);
         }
 
@@ -632,7 +844,7 @@
 
                 feedback.textContent = "Cambios guardados correctamente";
                 feedback.className = "feedback mt-2 text-success";
-                cargarDenuncias(filtrosActivos);
+                cargarMapaConDatos(filtrosActivos);
             } catch (error) {
                 console.error(error);
                 feedback.textContent =
@@ -642,22 +854,33 @@
         });
     });
 
-    filtrosForm.addEventListener("submit", (event) => {
-        event.preventDefault();
-        const filtros = {
-            estado: filtrosForm.estado.value,
-            zona: filtrosForm.zona.value,
-            fecha_desde: filtrosForm.fecha_desde.value,
-            fecha_hasta: filtrosForm.fecha_hasta.value,
-        };
-        cargarDenuncias(filtros);
-    });
+    if (filtrosForm) {
+        filtrosForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const filtros = obtenerFiltrosDesdeFormulario();
+            cargarMapaConDatos(filtros);
+        });
+    }
 
-    recargarBtn.addEventListener("click", () => {
-        cargarDenuncias(filtrosActivos);
-    });
+    if (recargarBtn) {
+        recargarBtn.addEventListener("click", () => {
+            cargarMapaConDatos(filtrosActivos);
+        });
+    }
 
-    cargarDenuncias();
+    if (btnNueva) {
+        btnNueva.onclick = () => cargarDenunciasPorEstado("Nueva");
+    }
+
+    if (btnGestion) {
+        btnGestion.onclick = () => cargarDenunciasPorEstado("En gestión");
+    }
+
+    if (btnFinalizada) {
+        btnFinalizada.onclick = () => cargarDenunciasPorEstado("Finalizada");
+    }
+
+    cargarDenunciasPorEstado("Nueva");
 
     async function extraerMensajeDeError(respuesta) {
         const generico = "No se pudieron guardar los cambios";
