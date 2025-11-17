@@ -8,6 +8,39 @@
         document.title = 'Política de Privacidad | Tu Barrio Limpio';
     });
 </script>
+<style>
+    .static-back-wrapper {
+        display: flex;
+        justify-content: flex-start;
+        margin-bottom: 20px;
+    }
+
+    .btn-volver {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 18px;
+        background-color: rgba(198, 40, 40, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        color: #fff;
+        font-weight: 600;
+        border-radius: 999px;
+        text-decoration: none;
+        box-shadow: 0 4px 12px rgba(198, 40, 40, 0.35);
+        transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .btn-volver:hover {
+        background-color: #8e0000;
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .auth-header h1 {
+        text-align: center;
+        width: 100%;
+    }
+</style>
 {% endblock extra_head %}
 
 {% block menu %}{% endblock %}
@@ -18,6 +51,10 @@
 <div class="auth-overlay"></div>
 
 <div class="container auth-container">
+
+    <div class="static-back-wrapper">
+        <a href="{{ request.user.is_authenticated|yesno:'/home/,/' }}" class="btn-volver">← Volver</a>
+    </div>
 
     <div class="auth-header">
         <h1>Tu Barrio Limpio</h1>
