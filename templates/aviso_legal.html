@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.title = 'Aviso Legal | Tu Barrio Limpio';
+    });
+</script>
+{% endblock extra_head %}
+
+{% block menu %}{% endblock %}
+{% block aside %}{% endblock %}
+
+{% block contenido %}
+<div class="container py-5">
+    <div class="mx-auto contenido" style="max-width: 900px;">
+        <h1 class="mb-4 text-center">Aviso Legal</h1>
+        <p class="text-muted">Última actualización: {% now "d \d\e F \d\e Y" %}</p>
+
+        <section class="mb-4">
+            <h3>Identificación del Responsable</h3>
+            <p>Tu Barrio Limpio es un proyecto municipal dedicado a la gestión colaborativa de reportes de microbasurales. Para cualquier comunicación formal, puedes escribirnos a <a href="mailto:contacto@tubarriolimpio.cl">contacto@tubarriolimpio.cl</a>.</p>
+        </section>
+
+        <section class="mb-4">
+            <h3>Objeto del Sitio</h3>
+            <p>El objetivo de esta plataforma es ofrecer a la ciudadanía una herramienta transparente para registrar, visualizar y hacer seguimiento de los focos de basura presentes en su comuna. La información publicada tiene fines meramente informativos y de gestión comunitaria.</p>
+        </section>
+
+        <section class="mb-4">
+            <h3>Condiciones de Uso</h3>
+            <p>Al acceder al sitio, el usuario se compromete a utilizarlo de forma responsable, respetando la legislación vigente y evitando el envío de información falsa, ofensiva o que pueda vulnerar los derechos de terceras personas. La administración podrá suspender o bloquear las cuentas que incumplan estas reglas.</p>
+        </section>
+
+        <section class="mb-4">
+            <h3>Propiedad Intelectual</h3>
+            <p>Los contenidos, diseños, logotipos y elementos gráficos presentes en Tu Barrio Limpio pertenecen al municipio o cuentan con licencias adecuadas para su utilización. Queda prohibida la reproducción total o parcial sin autorización previa y por escrito.</p>
+        </section>
+
+        <section class="mb-4">
+            <h3>Responsabilidad</h3>
+            <p>El municipio realizará los esfuerzos razonables para mantener el servicio disponible y libre de errores. No obstante, no se responsabiliza por posibles interrupciones técnicas, pérdida de datos derivada de causas externas o por el uso indebido de la plataforma por parte de terceros.</p>
+        </section>
+
+        <section>
+            <h3>Legislación Aplicable</h3>
+            <p>El presente aviso legal se rige por la normativa chilena vigente. En caso de conflicto, las partes se someterán a los tribunales competentes de la comuna correspondiente.</p>
+        </section>
+    </div>
+</div>
+{% endblock %}
