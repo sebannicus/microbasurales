@@ -93,6 +93,14 @@ def register_view(request):
     )
 
 
+def aviso_legal_view(request):
+    return render(request, "aviso_legal.html")
+
+
+def politica_privacidad_view(request):
+    return render(request, "politica_privacidad.html")
+
+
 # ✅ HOME HTML (vista protegida)
 @login_required
 def home_ciudadano_view(request):
