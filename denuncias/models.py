@@ -6,8 +6,6 @@ class EstadoDenuncia(models.TextChoices):
     EN_PROCESO = "en_proceso", "En gestión"
     RESUELTA = "resuelta", "Finalizada"
 
-    COLOR_DEFAULT = "#1d3557"
-
     @classmethod
     def color_map(cls):
         """Retorna el mapa de colores configurado para cada estado."""
@@ -28,6 +26,10 @@ class EstadoDenuncia(models.TextChoices):
             {"value": value, "label": label, "color": cls.get_color(value)}
             for value, label in cls.choices
         ]
+
+
+# Este valor se define fuera de la clase para que Django no lo interprete como choice
+EstadoDenuncia.COLOR_DEFAULT = "#1d3557"
 
 
 _ESTADO_DENUNCIA_COLOR_MAP = {

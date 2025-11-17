@@ -1,6 +1,12 @@
+import logging
+
+from django.db import OperationalError, ProgrammingError
 from rest_framework import serializers
 
 from .models import Denuncia, DenunciaNotificacion, EstadoDenuncia
+
+
+logger = logging.getLogger(__name__)
 
 
 class DenunciaSerializer(serializers.ModelSerializer):
@@ -117,12 +123,18 @@ class DenunciaAdminSerializer(DenunciaSerializer):
             descripcion = f"{descripcion[:77]}…"
 
         mensaje = mensaje_base.format(descripcion=descripcion)
-        DenunciaNotificacion.objects.create(
-            usuario=denuncia.usuario,
-            denuncia=denuncia,
-            mensaje=mensaje,
-            estado_nuevo=nuevo_estado,
-        )
+        try:
+            DenunciaNotificacion.objects.create(
+                usuario=denuncia.usuario,
+                denuncia=denuncia,
+                mensaje=mensaje,
+                estado_nuevo=nuevo_estado,
+            )
+        except (ProgrammingError, OperationalError):
+            logger.warning(
+                "No se pudo registrar la notificación del cambio de estado; ¿ejecutaste las migraciones?",
+                exc_info=True,
+            )
 
 
 class DenunciaCiudadanoSerializer(DenunciaSerializer):
