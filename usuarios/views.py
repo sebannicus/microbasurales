@@ -1,7 +1,15 @@
 from django.contrib import messages
-from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.contrib.auth import (
+    authenticate,
+    get_user_model,
+    login,
+    logout,
+    update_session_auth_hash,
+)
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect, render
+from django.views import View
 from django.views.decorators.http import require_http_methods
 from django.utils.http import url_has_allowed_host_and_scheme
 from rest_framework import generics
@@ -12,7 +20,7 @@ from rest_framework.response import Response
 from denuncias.models import Denuncia
 from denuncias.serializers import DenunciaCiudadanoSerializer
 
-from .forms import RegistroUsuarioForm
+from .forms import PasswordChangeCustomForm, RegistroUsuarioForm, UserUpdateForm
 from .serializers import UsuarioRegistroSerializer
 
 Usuario = get_user_model()
@@ -157,5 +165,53 @@ def me_view(request):
         "username": user.username,
         "email": user.email or "No especificado",
         "rol": "Administrador" if user.is_staff else "Usuario",
-        "mensaje": f"Autenticación válida. Bienvenido, {user.username}."
+        "mensaje": f"Autenticación válida. Bienvenido, {user.username}.",
     })
+
+
+class PerfilBaseView(LoginRequiredMixin, View):
+    template_name = "usuarios/perfil.html"
+
+    def build_context(self, request, **kwargs):
+        return {
+            "usuario": request.user,
+            "user_form": kwargs.get("user_form")
+            or UserUpdateForm(instance=request.user),
+            "password_form": kwargs.get("password_form")
+            or PasswordChangeCustomForm(user=request.user),
+        }
+
+
+class PerfilView(PerfilBaseView):
+    def get(self, request):
+        return render(request, self.template_name, self.build_context(request))
+
+    def post(self, request):
+        form = UserUpdateForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Perfil actualizado correctamente.")
+            return redirect("perfil")
+
+        messages.error(request, "Por favor corrige los errores para continuar.")
+        context = self.build_context(request, user_form=form)
+        return render(request, self.template_name, context)
+
+
+class PerfilPasswordUpdateView(PerfilBaseView):
+    def get(self, request):
+        return redirect("perfil")
+
+    def post(self, request):
+        form = PasswordChangeCustomForm(request.POST, user=request.user)
+        if form.is_valid():
+            user = request.user
+            user.set_password(form.cleaned_data["new_password1"])
+            user.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, "Tu contraseña se actualizó correctamente.")
+            return redirect("perfil")
+
+        messages.error(request, "No se pudo actualizar la contraseña. Revisa los datos.")
+        context = self.build_context(request, password_form=form)
+        return render(request, self.template_name, context)

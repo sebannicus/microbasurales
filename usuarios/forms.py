@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from django.utils.translation import gettext_lazy as _
 
 Usuario = get_user_model()
@@ -56,3 +57,110 @@ class RegistroUsuarioForm(forms.ModelForm):
         if commit:
             usuario.save()
         return usuario
+
+
+class UserUpdateForm(forms.ModelForm):
+    """Permite actualizar la información básica del usuario autenticado."""
+
+    class Meta:
+        model = Usuario
+        fields = ["email", "telefono", "direccion"]
+        labels = {
+            "email": _("Correo electrónico"),
+            "telefono": _("Teléfono"),
+            "direccion": _("Dirección"),
+        }
+        widgets = {
+            "email": forms.EmailInput(attrs={"placeholder": "usuario@dominio.com"}),
+            "telefono": forms.TextInput(attrs={"placeholder": "+54 9 11 5555-5555"}),
+            "direccion": forms.TextInput(attrs={"placeholder": "Calle 123, Ciudad"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            css_class = field.widget.attrs.get("class", "")
+            field.widget.attrs["class"] = f"{css_class} form-control".strip()
+
+    def clean_direccion(self):
+        """Evita que un usuario elimine una dirección previamente guardada."""
+
+        usuario = self.instance
+        nueva_direccion = self.cleaned_data.get("direccion")
+
+        if usuario and usuario.direccion and not nueva_direccion:
+            raise forms.ValidationError(
+                _("La dirección no puede quedar en blanco una vez registrada.")
+            )
+
+        return nueva_direccion
+
+    def clean_telefono(self):
+        """Impide eliminar un teléfono ya registrado."""
+
+        usuario = self.instance
+        nuevo_telefono = self.cleaned_data.get("telefono")
+
+        if usuario and usuario.telefono and not nuevo_telefono:
+            raise forms.ValidationError(
+                _("El teléfono no puede quedar en blanco una vez registrado.")
+            )
+
+        return nuevo_telefono
+
+
+class PasswordChangeCustomForm(forms.Form):
+    """Formulario personalizado para actualizar la contraseña del usuario."""
+
+    current_password = forms.CharField(
+        label=_("Contraseña actual"),
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+    )
+    new_password1 = forms.CharField(
+        label=_("Nueva contraseña"),
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+    new_password2 = forms.CharField(
+        label=_("Confirmar contraseña"),
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+
+    error_messages = {
+        "password_mismatch": _("Las contraseñas nuevas no coinciden."),
+        "invalid_current": _("La contraseña actual no es correcta."),
+    }
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user")
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            css_class = field.widget.attrs.get("class", "")
+            field.widget.attrs["class"] = f"{css_class} form-control".strip()
+
+    def clean_current_password(self):
+        current_password = self.cleaned_data.get("current_password")
+        if not self.user.check_password(current_password):
+            raise forms.ValidationError(
+                self.error_messages["invalid_current"],
+                code="invalid_current",
+            )
+        return current_password
+
+    def clean_new_password1(self):
+        new_password = self.cleaned_data.get("new_password1")
+        validate_password(new_password, self.user)
+        return new_password
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password1 = cleaned_data.get("new_password1")
+        password2 = cleaned_data.get("new_password2")
+        if password1 and password2 and password1 != password2:
+            raise forms.ValidationError(
+                self.error_messages["password_mismatch"],
+                code="password_mismatch",
+            )
+        return cleaned_data

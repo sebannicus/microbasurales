@@ -112,18 +112,15 @@
                 <li class="nav-item">
                     <a class="nav-link text-white" href="{% url 'home_ciudadano' %}">Inicio</a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link text-white" href="#">Recursos Multimedia</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-white" href="#">Herramientas</a>
-                </li>
                 {% if user.is_authenticated and user.puede_gestionar_denuncias %}
                 <li class="nav-item">
                     <a class="nav-link text-white {% if request.path|is_panel_denuncias %}fw-bold{% endif %}" href="{% url 'panel_denuncias' %}">Panel de denuncias</a>
                 </li>
                 {% endif %}
                 {% if user.is_authenticated %}
+                <li class="nav-item">
+                    <a class="nav-link text-white" href="{% url 'perfil' %}">Perfil</a>
+                </li>
                 <li class="nav-item">
                     <a class="nav-link text-white" href="{% url 'logout' %}">Cerrar Sesión</a>
                 </li>

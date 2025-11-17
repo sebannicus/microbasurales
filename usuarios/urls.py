@@ -8,6 +8,8 @@ from .views import (
     login_view,
     logout_view,
     me_view,
+    PerfilPasswordUpdateView,
+    PerfilView,
     politica_privacidad_view,
     register_view,
 )
@@ -30,6 +32,9 @@ urlpatterns = [
     path('refresh/', TokenRefreshView.as_view(), name='refresh'),
 
     path('logout/', logout_view, name='logout'),
+
+    path('perfil/', PerfilView.as_view(), name='perfil'),
+    path('perfil/cambiar-clave/', PerfilPasswordUpdateView.as_view(), name='perfil_cambiar_clave'),
 
 
     path('home/', home_view, name="home"),

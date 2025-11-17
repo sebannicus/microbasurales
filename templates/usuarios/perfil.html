@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+    .perfil-card {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 5px 18px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(198, 40, 40, 0.15);
+    }
+
+    .perfil-section-title {
+        font-size: 1rem;
+        text-transform: uppercase;
+        color: #c62828;
+        letter-spacing: 0.06rem;
+        font-weight: 700;
+    }
+
+    .perfil-divider {
+        height: 3px;
+        width: 60px;
+        background: linear-gradient(90deg, #c62828, #ef5350);
+        border-radius: 999px;
+    }
+
+    .perfil-badge {
+        background-color: rgba(198, 40, 40, 0.1);
+        color: #c62828;
+        border-radius: 999px;
+        padding: 0.35rem 1rem;
+        font-weight: 600;
+    }
+
+    .form-control:focus {
+        border-color: #c62828;
+        box-shadow: 0 0 0 0.2rem rgba(198, 40, 40, 0.25);
+    }
+
+    .perfil-label {
+        font-weight: 600;
+        color: #444;
+    }
+</style>
+{% endblock extra_head %}
+
+{% block contenido %}
+<div class="container">
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="perfil-card p-4 h-100">
+                <div class="d-flex flex-column gap-2 mb-3">
+                    <span class="perfil-section-title">Resumen</span>
+                    <div class="perfil-divider"></div>
+                    <span class="h4 fw-bold text-dark">{{ usuario.get_full_name|default:usuario.username }}</span>
+                    <span class="perfil-badge">{{ usuario.get_rol_display }}</span>
+                </div>
+                <ul class="list-unstyled small mb-0">
+                    <li class="mb-2"><strong>Nombre de usuario:</strong> {{ usuario.username }}</li>
+                    <li class="mb-2"><strong>Email:</strong> {{ usuario.email|default:"No registrado" }}</li>
+                    <li class="mb-2"><strong>Teléfono:</strong> {{ usuario.telefono|default:"No registrado" }}</li>
+                    <li class="mb-2"><strong>Dirección:</strong> {{ usuario.direccion|default:"No registrada" }}</li>
+                    <li class="mb-2"><strong>Fecha de creación:</strong> {{ usuario.date_joined|date:"d/m/Y H:i" }}</li>
+                    <li class="mb-2"><strong>Último inicio de sesión:</strong>
+                        {% if usuario.last_login %}
+                            {{ usuario.last_login|date:"d/m/Y H:i" }}
+                        {% else %}
+                            Sin registros
+                        {% endif %}
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="perfil-card p-4 mb-4">
+                <div class="d-flex flex-column gap-2 mb-3">
+                    <span class="perfil-section-title">Información básica</span>
+                    <div class="perfil-divider"></div>
+                    <p class="mb-0 text-muted">Actualiza tus datos de contacto para mantenernos al día.</p>
+                </div>
+                <form method="post" action="{% url 'perfil' %}" novalidate>
+                    {% csrf_token %}
+                    {% if user_form.non_field_errors %}
+                        <div class="alert alert-danger py-2 small">{{ user_form.non_field_errors|striptags }}</div>
+                    {% endif %}
+                    <div class="row g-3">
+                        {% for field in user_form %}
+                        <div class="col-12 col-md-6">
+                            <label class="form-label perfil-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {% if field.errors %}
+                                <div class="form-group has-error">
+                                    {{ field }}
+                                    <div class="invalid-feedback d-block">{{ field.errors.0 }}</div>
+                                </div>
+                            {% else %}
+                                <div class="form-group">
+                                    {{ field }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="submit" class="btn btn-background px-4">Guardar cambios</button>
+                    </div>
+                </form>
+            </div>
+            <div class="perfil-card p-4">
+                <div class="d-flex flex-column gap-2 mb-3">
+                    <span class="perfil-section-title">Seguridad</span>
+                    <div class="perfil-divider"></div>
+                    <p class="mb-0 text-muted">Cambiar tu contraseña cerrará sesiones abiertas en otros dispositivos.</p>
+                </div>
+                <form method="post" action="{% url 'perfil_cambiar_clave' %}" novalidate>
+                    {% csrf_token %}
+                    {% if password_form.non_field_errors %}
+                        <div class="alert alert-danger py-2 small">{{ password_form.non_field_errors|striptags }}</div>
+                    {% endif %}
+                    <div class="row g-3">
+                        {% for field in password_form %}
+                        <div class="col-12 col-md-4">
+                            <label class="form-label perfil-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="text-danger small mt-1">{{ field.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="submit" class="btn btn-background px-4">Actualizar contraseña</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock contenido %}
