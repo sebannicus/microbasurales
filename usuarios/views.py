@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from denuncias.models import Denuncia
+from denuncias.serializers import DenunciaCiudadanoSerializer
 
 from .forms import RegistroUsuarioForm
 from .serializers import UsuarioRegistroSerializer
@@ -114,10 +115,19 @@ def home_view(request):
         .order_by("-fecha_creacion")
     )
 
+    denuncias_serializadas = DenunciaCiudadanoSerializer(
+        denuncias_usuario,
+        many=True,
+        context={"request": request},
+    ).data
+
     return render(
         request,
         "home_ciudadano.html",
-        {"denuncias": denuncias_usuario},
+        {
+            "denuncias": denuncias_usuario,
+            "denuncias_json": denuncias_serializadas,
+        },
     )
 
 

@@ -144,6 +144,15 @@ class DenunciaCiudadanoSerializer(DenunciaSerializer):
             "longitud",
         ]
 
+    def update(self, instance, validated_data):
+        if instance.estado != EstadoDenuncia.PENDIENTE:
+            raise serializers.ValidationError(
+                {
+                    "estado": "Solo puedes editar denuncias que estén en estado 'Nueva'.",
+                }
+            )
+        return super().update(instance, validated_data)
+
 
 class NotificacionDenunciaSerializer(serializers.ModelSerializer):
     estado_nuevo_display = serializers.CharField(

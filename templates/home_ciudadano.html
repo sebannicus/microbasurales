@@ -150,9 +150,11 @@
     <div class="card denuncias-card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Mis denuncias recientes</h5>
-            <span class="badge bg-light text-dark" id="totalDenuncias">
-                0 registros
-            </span>
+            {% with total_denuncias=denuncias|length %}
+                <span class="badge bg-light text-dark" id="totalDenuncias">
+                    {{ total_denuncias }} registro{% if total_denuncias != 1 %}s{% endif %}
+                </span>
+            {% endwith %}
         </div>
         <div class="card-body">
             <div class="table-responsive tabla-denuncias">
@@ -167,10 +169,60 @@
                             <th class="text-end">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody id="tablaDenunciasBody"></tbody>
+                    <tbody id="tablaDenunciasBody">
+                        {% for denuncia in denuncias %}
+                            <tr data-denuncia-id="{{ denuncia.id }}">
+                                <td>
+                                    {{ denuncia.fecha_creacion|date:"d/m/Y H:i" }}
+                                </td>
+                                <td>
+                                    {{ denuncia.descripcion|default:"Sin descripción" }}
+                                </td>
+                                <td>
+                                    <strong>{{ denuncia.direccion_textual|default:"Sin dirección disponible" }}</strong><br>
+                                    <small class="text-muted">
+                                        Lat: {{ denuncia.latitud|floatformat:6 }}<br>
+                                        Lng: {{ denuncia.longitud|floatformat:6 }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <span class="badge text-bg-light">{{ denuncia.get_estado_display }}</span>
+                                </td>
+                                <td>
+                                    {% if denuncia.imagen %}
+                                        <img src="{{ denuncia.imagen.url }}" alt="Foto denuncia {{ denuncia.id }}">
+                                    {% else %}
+                                        <span class="text-muted">Sin imagen</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button"
+                                            class="btn btn-outline-danger btn-ver-denuncia"
+                                            data-denuncia-id="{{ denuncia.id }}">
+                                            <i class='bx bx-show-alt'></i> Ver
+                                        </button>
+                                        {% if denuncia.get_estado_display == "Nueva" %}
+                                            <button type="button"
+                                                class="btn btn-danger btn-editar-denuncia"
+                                                data-denuncia-id="{{ denuncia.id }}">
+                                                <i class='bx bx-edit-alt'></i> Editar
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    Aún no has registrado denuncias. ¡Comienza con el botón "Ingresar Denuncia"!
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
                 </table>
             </div>
-            <p class="mb-0 text-muted" id="sinDenuncias">
+            <p class="mb-0 text-muted {% if denuncias %}d-none{% endif %}" id="sinDenuncias">
                 Aún no has registrado denuncias. ¡Comienza con el botón "Ingresar Denuncia"!
             </p>
         </div>
@@ -335,6 +387,8 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
 ></script>
+{{ denuncias_json|json_script:"denuncias-iniciales-data" }}
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const formDenuncia = document.getElementById('denunciaForm');
@@ -953,20 +1007,30 @@
             btnVer.type = 'button';
             btnVer.className = 'btn btn-outline-danger btn-ver-denuncia';
             btnVer.innerHTML = "<i class='bx bx-show-alt'></i> Ver";
-            btnVer.addEventListener('click', () => abrirModalDetalle(denuncia.id));
-
-            const btnEditar = document.createElement('button');
-            btnEditar.type = 'button';
-            btnEditar.className = 'btn btn-danger btn-editar-denuncia';
-            btnEditar.innerHTML = "<i class='bx bx-edit-alt'></i> Editar";
-            btnEditar.addEventListener('click', () => abrirModalEditar(denuncia.id));
-
+            btnVer.dataset.denunciaId = denuncia.id;
             grupo.appendChild(btnVer);
-            grupo.appendChild(btnEditar);
+
+            if (puedeEditarDenuncia(denuncia)) {
+                const btnEditar = document.createElement('button');
+                btnEditar.type = 'button';
+                btnEditar.className = 'btn btn-danger btn-editar-denuncia';
+                btnEditar.innerHTML = "<i class='bx bx-edit-alt'></i> Editar";
+                btnEditar.dataset.denunciaId = denuncia.id;
+                grupo.appendChild(btnEditar);
+            }
             accionesTd.appendChild(grupo);
             fila.appendChild(accionesTd);
 
             return fila;
+        }
+
+        function puedeEditarDenuncia(denuncia) {
+            if (!denuncia) {
+                return false;
+            }
+            const estadoRaw = (denuncia.estado || '').toString().toLowerCase();
+            const estadoDisplay = (denuncia.estado_display || '').toString().toLowerCase();
+            return estadoRaw === 'pendiente' || estadoDisplay === 'nueva';
         }
 
         function actualizarTotales() {
@@ -1251,6 +1315,34 @@
 
         if (formEditarDenuncia) {
             formEditarDenuncia.addEventListener('submit', enviarEdicionDenuncia);
+        }
+
+        const denunciasInicialesScript = document.getElementById('denuncias-iniciales-data');
+        if (denunciasInicialesScript) {
+            try {
+                const denunciasIniciales = JSON.parse(denunciasInicialesScript.textContent);
+                if (Array.isArray(denunciasIniciales)) {
+                    denunciasIniciales.forEach((denuncia) => {
+                        denunciasCache.set(Number(denuncia.id), denuncia);
+                    });
+                }
+            } catch (error) {
+                console.error('No se pudo leer la data inicial de denuncias.', error);
+            }
+        }
+
+        if (tablaDenunciasBody) {
+            tablaDenunciasBody.addEventListener('click', (event) => {
+                const botonVer = event.target.closest('.btn-ver-denuncia');
+                if (botonVer) {
+                    abrirModalDetalle(botonVer.dataset.denunciaId);
+                    return;
+                }
+                const botonEditar = event.target.closest('.btn-editar-denuncia');
+                if (botonEditar) {
+                    abrirModalEditar(botonEditar.dataset.denunciaId);
+                }
+            });
         }
 
         cargarDenuncias();
