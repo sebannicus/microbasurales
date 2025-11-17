@@ -6,8 +6,6 @@ class EstadoDenuncia(models.TextChoices):
     EN_PROCESO = "en_proceso", "En gestión"
     RESUELTA = "resuelta", "Finalizada"
 
-    COLOR_DEFAULT = "#1d3557"
-
     @classmethod
     def color_map(cls):
         """Retorna el mapa de colores configurado para cada estado."""
@@ -30,6 +28,10 @@ class EstadoDenuncia(models.TextChoices):
         ]
 
 
+# Este valor se define fuera de la clase para que Django no lo interprete como choice
+EstadoDenuncia.COLOR_DEFAULT = "#1d3557"
+
+
 _ESTADO_DENUNCIA_COLOR_MAP = {
     EstadoDenuncia.PENDIENTE: "#d32f2f",
     EstadoDenuncia.EN_PROCESO: "#f57c00",
@@ -41,6 +43,10 @@ class Denuncia(models.Model):
     """
     Modelo principal para una denuncia.
     """
+    # Alias al enumerador de estados para mantener compatibilidad con
+    # otros módulos que esperan accederlo como `Denuncia.EstadoDenuncia`.
+    EstadoDenuncia = EstadoDenuncia
+
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

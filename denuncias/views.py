@@ -13,8 +13,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Denuncia, DenunciaNotificacion
-from .permissions import IsFuncionarioMunicipal
+from .models import Denuncia, DenunciaNotificacion, EstadoDenuncia
+from .permissions import IsFuncionarioMunicipal, PuedeEditarDenunciasFinalizadas
 from .serializers import (
     DenunciaAdminSerializer,
     DenunciaCiudadanoSerializer,
@@ -202,13 +202,20 @@ class MisNotificacionesListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = DenunciaNotificacion.objects.filter(usuario=self.request.user)
-        solo_no_leidas = self.request.query_params.get("solo_no_leidas")
-        if solo_no_leidas is not None:
-            valor = str(solo_no_leidas).lower()
-            if valor in {"1", "true", "t", "yes", "on"}:
-                queryset = queryset.filter(leida=False)
-        return queryset.order_by("-fecha_creacion")
+        try:
+            queryset = DenunciaNotificacion.objects.filter(usuario=self.request.user)
+            solo_no_leidas = self.request.query_params.get("solo_no_leidas")
+            if solo_no_leidas is not None:
+                valor = str(solo_no_leidas).lower()
+                if valor in {"1", "true", "t", "yes", "on"}:
+                    queryset = queryset.filter(leida=False)
+            return queryset.order_by("-fecha_creacion")
+        except (ProgrammingError, OperationalError):
+            logger.warning(
+                "No se pudieron cargar las notificaciones; ¿ejecutaste las migraciones?",
+                exc_info=True,
+            )
+            return DenunciaNotificacion.objects.none()
 
 
 class NotificacionActualizarView(generics.UpdateAPIView):
@@ -219,7 +226,14 @@ class NotificacionActualizarView(generics.UpdateAPIView):
     http_method_names = ["patch"]
 
     def get_queryset(self):
-        return DenunciaNotificacion.objects.filter(usuario=self.request.user)
+        try:
+            return DenunciaNotificacion.objects.filter(usuario=self.request.user)
+        except (ProgrammingError, OperationalError):
+            logger.warning(
+                "No se pudieron actualizar las notificaciones; ¿ejecutaste las migraciones?",
+                exc_info=True,
+            )
+            return DenunciaNotificacion.objects.none()
 
 
 def _usuario_puede_gestionar_denuncias(usuario) -> bool:
