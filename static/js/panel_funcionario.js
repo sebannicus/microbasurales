@@ -8,6 +8,8 @@
     const apiUrl = mapaElemento.dataset.apiUrl;
     const updateUrlTemplate = mapaElemento.dataset.updateUrl || "";
     const updateBaseUrl = updateUrlTemplate.replace(/0\/?$/, "");
+    const esFiscalizador = mapaElemento.dataset.esFiscalizador === "true";
+    const esAdministrador = mapaElemento.dataset.esAdministrador === "true";
 
     const ultimaActualizacion = document.getElementById("ultima-actualizacion");
     const filtrosForm = document.getElementById("filtros-form");
@@ -24,33 +26,45 @@
         sinDenunciasRow.remove();
     }
 
-    const listaEnProceso = document.getElementById("denuncias-en-proceso-list");
-    const sinEnProcesoElemento = document.getElementById("sin-denuncias-en-proceso");
-    const contadorEnProceso = document.getElementById("contador-en-proceso");
-    const sinEnProcesoTemplate = sinEnProcesoElemento
-        ? sinEnProcesoElemento.cloneNode(true)
+    const listaEnGestion = document.getElementById("denuncias-en-gestion-list");
+    const sinEnGestionElemento = document.getElementById("sin-denuncias-en-gestion");
+    const contadorEnGestion = document.getElementById("contador-en-gestion");
+    const sinEnGestionTemplate = sinEnGestionElemento
+        ? sinEnGestionElemento.cloneNode(true)
         : null;
 
-    if (sinEnProcesoElemento) {
-        sinEnProcesoElemento.remove();
+    if (sinEnGestionElemento) {
+        sinEnGestionElemento.remove();
     }
 
-    const listaResueltas = document.getElementById("denuncias-resueltas-list");
-    const sinResueltasElemento = document.getElementById("sin-denuncias-resueltas");
-    const contadorResueltas = document.getElementById("contador-resueltas");
-    const sinResueltasTemplate = sinResueltasElemento
-        ? sinResueltasElemento.cloneNode(true)
+    const listaRealizado = document.getElementById("denuncias-realizado-list");
+    const sinRealizadoElemento = document.getElementById("sin-denuncias-realizado");
+    const contadorRealizados = document.getElementById("contador-realizados");
+    const sinRealizadoTemplate = sinRealizadoElemento
+        ? sinRealizadoElemento.cloneNode(true)
         : null;
 
-    if (sinResueltasElemento) {
-        sinResueltasElemento.remove();
+    if (sinRealizadoElemento) {
+        sinRealizadoElemento.remove();
+    }
+
+    const listaFinalizado = document.getElementById("denuncias-finalizado-list");
+    const sinFinalizadoElemento = document.getElementById("sin-denuncias-finalizado");
+    const contadorFinalizados = document.getElementById("contador-finalizados");
+    const sinFinalizadoTemplate = sinFinalizadoElemento
+        ? sinFinalizadoElemento.cloneNode(true)
+        : null;
+
+    if (sinFinalizadoElemento) {
+        sinFinalizadoElemento.remove();
     }
 
     const estadosConfigElement = document.getElementById("estados-config");
     const DEFAULT_ESTADOS_CONFIG = [
-        { value: "pendiente", label: "Nueva", color: "#d32f2f" },
-        { value: "en_proceso", label: "En gestión", color: "#f57c00" },
-        { value: "resuelta", label: "Finalizada", color: "#388e3c" },
+        { value: "pendiente", label: "Pendiente", color: "#d32f2f" },
+        { value: "en_gestion", label: "En gestión", color: "#f57c00" },
+        { value: "realizado", label: "Realizado", color: "#1976d2" },
+        { value: "finalizado", label: "Finalizado", color: "#388e3c" },
     ];
 
     let estadosConfig = DEFAULT_ESTADOS_CONFIG;
@@ -74,8 +88,21 @@
             ? "pendiente"
             : estadosConfig[0] && estadosConfig[0].value) || "pendiente";
 
+    function normalizarEstado(valor) {
+        if (!valor) {
+            return valor;
+        }
+        if (valor === "en_proceso") {
+            return "en_gestion";
+        }
+        if (valor === "resuelta") {
+            return "finalizado";
+        }
+        return valor;
+    }
+
     function obtenerConfigEstado(valor) {
-        return estadosMap.get(valor);
+        return estadosMap.get(normalizarEstado(valor));
     }
 
     function obtenerColorDenuncia(denuncia) {
@@ -83,7 +110,8 @@
             return denuncia.color;
         }
 
-        const config = denuncia ? obtenerConfigEstado(denuncia.estado) : null;
+        const estado = denuncia ? normalizarEstado(denuncia.estado) : null;
+        const config = denuncia ? obtenerConfigEstado(estado) : null;
         return (config && config.color) || DEFAULT_MARKER_COLOR;
     }
 
@@ -102,6 +130,60 @@
         }
 
         return denuncia.estado;
+    }
+
+    function escapeHtml(texto) {
+        if (texto === null || texto === undefined) {
+            return "";
+        }
+        return String(texto)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function escapeAttribute(texto) {
+        return escapeHtml(texto);
+    }
+
+    function obtenerOpcionesEstadoParaUsuario(denuncia) {
+        const estadoActual = normalizarEstado(denuncia.estado);
+        if (esAdministrador) {
+            if (estadoActual === "realizado") {
+                return [estadoActual, "finalizado"];
+            }
+            return [estadoActual];
+        }
+
+        if (esFiscalizador) {
+            if (estadoActual === "pendiente") {
+                return [estadoActual, "en_gestion"];
+            }
+            if (estadoActual === "en_gestion") {
+                return [estadoActual, "realizado"];
+            }
+            return [estadoActual];
+        }
+
+        return [estadoActual];
+    }
+
+    function obtenerTextoAyudaEstado(estadoActual) {
+        if (esAdministrador && estadoActual === "realizado") {
+            return "Al finalizar se notificará automáticamente al denunciante.";
+        }
+        if (esAdministrador && estadoActual !== "realizado") {
+            return "Solo puedes finalizar denuncias marcadas como realizadas.";
+        }
+        if (esFiscalizador && estadoActual === "realizado") {
+            return "Pendiente de revisión administrativa para cierre definitivo.";
+        }
+        if (esFiscalizador && estadoActual === "en_gestion") {
+            return "Debes adjuntar el reporte de cuadrilla antes de marcarla como realizada.";
+        }
+        return "";
     }
 
     function activarTab(estadoObjetivo) {
@@ -184,8 +266,9 @@
 
             const bounds = [];
             const pendientes = [];
-            const enProceso = [];
-            const resueltas = [];
+            const enGestion = [];
+            const realizados = [];
+            const finalizados = [];
 
             while (paginaUrl) {
                 const respuesta = await fetch(paginaUrl.toString(), {
@@ -203,12 +286,15 @@
                 const data = await respuesta.json();
                 (data.results || []).forEach((denuncia) => {
                     agregarMarcador(denuncia, bounds);
-                    if (denuncia.estado === "pendiente") {
+                    const estadoNormalizado = normalizarEstado(denuncia.estado);
+                    if (estadoNormalizado === "pendiente") {
                         pendientes.push(denuncia);
-                    } else if (denuncia.estado === "en_proceso") {
-                        enProceso.push(denuncia);
-                    } else if (denuncia.estado === "resuelta") {
-                        resueltas.push(denuncia);
+                    } else if (estadoNormalizado === "en_gestion") {
+                        enGestion.push(denuncia);
+                    } else if (estadoNormalizado === "realizado") {
+                        realizados.push(denuncia);
+                    } else if (estadoNormalizado === "finalizado") {
+                        finalizados.push(denuncia);
                     }
                 });
 
@@ -239,24 +325,32 @@
             };
 
             pendientes.sort(comparadorPorFecha);
-            enProceso.sort(comparadorPorFecha);
-            resueltas.sort(comparadorPorFecha);
+            enGestion.sort(comparadorPorFecha);
+            realizados.sort(comparadorPorFecha);
+            finalizados.sort(comparadorPorFecha);
 
             ajustarMapa(bounds);
             actualizarMarcaDeTiempo();
             actualizarTablaPendientes(pendientes);
             actualizarResumenEstado(
-                enProceso,
-                listaEnProceso,
-                sinEnProcesoTemplate,
-                contadorEnProceso,
+                enGestion,
+                listaEnGestion,
+                sinEnGestionTemplate,
+                contadorEnGestion,
                 { mostrarEstado: false }
             );
             actualizarResumenEstado(
-                resueltas,
-                listaResueltas,
-                sinResueltasTemplate,
-                contadorResueltas,
+                realizados,
+                listaRealizado,
+                sinRealizadoTemplate,
+                contadorRealizados,
+                { mostrarEstado: false }
+            );
+            actualizarResumenEstado(
+                finalizados,
+                listaFinalizado,
+                sinFinalizadoTemplate,
+                contadorFinalizados,
                 { mostrarEstado: true }
             );
             activarTab(filtros.estado);
@@ -269,15 +363,21 @@
             actualizarTablaPendientes([]);
             actualizarResumenEstado(
                 [],
-                listaEnProceso,
-                sinEnProcesoTemplate,
-                contadorEnProceso
+                listaEnGestion,
+                sinEnGestionTemplate,
+                contadorEnGestion
             );
             actualizarResumenEstado(
                 [],
-                listaResueltas,
-                sinResueltasTemplate,
-                contadorResueltas
+                listaRealizado,
+                sinRealizadoTemplate,
+                contadorRealizados
+            );
+            actualizarResumenEstado(
+                [],
+                listaFinalizado,
+                sinFinalizadoTemplate,
+                contadorFinalizados
             );
         }
     }
@@ -310,18 +410,27 @@
         const direccion = denuncia.direccion || "Sin dirección registrada";
         const zona = denuncia.zona || "No asignada";
         const cuadrilla = denuncia.cuadrilla_asignada || "";
+        const estadoActual = normalizarEstado(denuncia.estado);
+        const estadoOptions = obtenerOpcionesEstadoParaUsuario(denuncia);
+        const selectDisabled = estadoOptions.length <= 1;
+        const estadoSelectOptions = estadoOptions
+            .map((value) => {
+                const config = obtenerConfigEstado(value) || {};
+                const label = config.label || value;
+                const selected = value === estadoActual ? "selected" : "";
+                return `<option value="${value}" ${selected}>${label}</option>`;
+            })
+            .join("");
+        const estadoHelpText = obtenerTextoAyudaEstado(estadoActual);
+        const reporteCuadrilla = denuncia.reporte_cuadrilla || "";
+        const puedeEditarReporte = esFiscalizador && estadoActual === "en_gestion";
+        const reporteHelpText = puedeEditarReporte
+            ? "Adjunta la información entregada por la cuadrilla municipal."
+            : "";
+        const reporteAtributos = puedeEditarReporte ? "" : "readonly";
         const fecha = denuncia.fecha_creacion
             ? new Date(denuncia.fecha_creacion).toLocaleString("es-CL")
             : "Fecha no disponible";
-
-        const options = estadosConfig
-            .map(
-                ({ value, label }) =>
-                    `<option value="${value}" ${
-                        denuncia.estado === value ? "selected" : ""
-                    }>${label}</option>`
-            )
-            .join("");
 
         return `
             <div class="popup-denuncia" data-id="${denuncia.id}">
@@ -330,16 +439,36 @@
                 <p class="mb-1"><strong>Descripción:</strong> ${denuncia.descripcion}</p>
                 <p class="mb-1"><strong>Dirección:</strong> ${direccion}</p>
                 <p class="mb-2"><strong>Zona:</strong> ${zona}</p>
-                <form class="update-form">
+                <form class="update-form" data-estado-actual="${estadoActual}">
                     <div class="mb-2">
                         <label class="form-label">Actualizar estado</label>
-                        <select class="form-select form-select-sm" name="estado">
-                            ${options}
+                        <select class="form-select form-select-sm" name="estado" ${
+                            selectDisabled ? "disabled" : ""
+                        }>
+                            ${estadoSelectOptions}
                         </select>
+                        ${
+                            estadoHelpText
+                                ? `<div class="form-text text-muted">${estadoHelpText}</div>`
+                                : ""
+                        }
                     </div>
                     <div class="mb-2">
                         <label class="form-label">Cuadrilla asignada</label>
-                        <input type="text" class="form-control form-control-sm" name="cuadrilla_asignada" value="${cuadrilla}">
+                        <input type="text" class="form-control form-control-sm" name="cuadrilla_asignada" value="${escapeAttribute(
+                            cuadrilla
+                        )}">
+                    </div>
+                    <div class="mb-2 reporte-cuadrilla-group">
+                        <label class="form-label">Reporte de cuadrilla</label>
+                        <textarea class="form-control form-control-sm" name="reporte_cuadrilla" ${reporteAtributos}>${escapeHtml(
+                            reporteCuadrilla
+                        )}</textarea>
+                        ${
+                            reporteHelpText
+                                ? `<div class="form-text text-muted">${reporteHelpText}</div>`
+                                : ""
+                        }
                     </div>
                     <button type="submit" class="btn btn-sm btn-background w-100">Guardar cambios</button>
                 </form>
@@ -648,9 +777,26 @@
 
             const formData = new FormData(formulario);
             const payload = {
-                estado: formData.get("estado"),
-                cuadrilla_asignada: formData.get("cuadrilla_asignada"),
+                cuadrilla_asignada: (formData.get("cuadrilla_asignada") || "").trim(),
+                reporte_cuadrilla: (formData.get("reporte_cuadrilla") || "").trim(),
             };
+
+            const estadoObjetivo = formData.get("estado");
+            if (estadoObjetivo) {
+                payload.estado = estadoObjetivo;
+            }
+
+            if (
+                esFiscalizador &&
+                formulario.dataset.estadoActual === "en_gestion" &&
+                payload.estado === "realizado" &&
+                !payload.reporte_cuadrilla
+            ) {
+                feedback.textContent =
+                    "Debes adjuntar el reporte de cuadrilla antes de marcar la denuncia como realizada.";
+                feedback.className = "feedback mt-2 text-danger";
+                return;
+            }
 
             try {
                 const csrfToken = obtenerCSRFToken();

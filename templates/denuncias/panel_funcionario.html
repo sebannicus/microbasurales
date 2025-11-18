@@ -138,6 +138,15 @@
             font-size: 0.85rem !important;
         }
 
+        .reporte-cuadrilla-group textarea {
+            min-height: 96px;
+            resize: vertical;
+        }
+
+        .reporte-cuadrilla-group .form-text {
+            font-size: 0.75rem;
+        }
+
     </style>
 {% endblock extra_head %}
 
@@ -175,7 +184,7 @@
                 <label class="form-label mb-1">Zona</label>
                 <select id="zona" name="zona" class="form-select form-select-sm">
                     <option value="">Todas</option>
-                    {% for z in zonas %}
+                    {% for z in zonas_disponibles %}
                         <option value="{{ z }}">{{ z }}</option>
                     {% endfor %}
                 </select>
@@ -223,14 +232,19 @@
                                 <span class="badge bg-secondary ms-1" id="contador-pendientes">0</span>
                             </button>
 
-                            <button type="button" class="btn btn-outline-secondary estado-tab" data-estado="en_proceso">
+                            <button type="button" class="btn btn-outline-secondary estado-tab" data-estado="en_gestion">
                                 En gestión
-                                <span class="badge bg-secondary ms-1" id="contador-en-proceso">0</span>
+                                <span class="badge bg-secondary ms-1" id="contador-en-gestion">0</span>
                             </button>
 
-                            <button type="button" class="btn btn-outline-secondary estado-tab" data-estado="resuelta">
-                                Finalizadas
-                                <span class="badge bg-secondary ms-1" id="contador-resueltas">0</span>
+                            <button type="button" class="btn btn-outline-secondary estado-tab" data-estado="realizado">
+                                Realizados
+                                <span class="badge bg-secondary ms-1" id="contador-realizados">0</span>
+                            </button>
+
+                            <button type="button" class="btn btn-outline-secondary estado-tab" data-estado="finalizado">
+                                Cerrados
+                                <span class="badge bg-secondary ms-1" id="contador-finalizados">0</span>
                             </button>
                         </div>
 
@@ -264,20 +278,29 @@
                         </div>
                     </div>
 
-                    <!-- EN PROCESO -->
-                    <div class="estado-panel d-none" data-estado="en_proceso">
-                        <div class="list-group list-group-flush" id="denuncias-en-proceso-list">
-                            <div class="list-group-item text-muted py-3" id="sin-denuncias-en-proceso">
+                    <!-- EN GESTIÓN -->
+                    <div class="estado-panel d-none" data-estado="en_gestion">
+                        <div class="list-group list-group-flush" id="denuncias-en-gestion-list">
+                            <div class="list-group-item text-muted py-3" id="sin-denuncias-en-gestion">
                                 No hay denuncias en gestión para mostrar.
                             </div>
                         </div>
                     </div>
 
-                    <!-- RESUELTAS -->
-                    <div class="estado-panel d-none" data-estado="resuelta">
-                        <div class="list-group list-group-flush" id="denuncias-resueltas-list">
-                            <div class="list-group-item text-muted py-3" id="sin-denuncias-resueltas">
-                                No hay denuncias finalizadas para mostrar.
+                    <!-- REALIZADOS -->
+                    <div class="estado-panel d-none" data-estado="realizado">
+                        <div class="list-group list-group-flush" id="denuncias-realizado-list">
+                            <div class="list-group-item text-muted py-3" id="sin-denuncias-realizado">
+                                No hay denuncias marcadas como realizadas.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FINALIZADOS -->
+                    <div class="estado-panel d-none" data-estado="finalizado">
+                        <div class="list-group list-group-flush" id="denuncias-finalizado-list">
+                            <div class="list-group-item text-muted py-3" id="sin-denuncias-finalizado">
+                                No hay denuncias cerradas para mostrar.
                             </div>
                         </div>
                     </div>
@@ -304,7 +327,9 @@
                     <div id="mapa-denuncias"
                         data-token="{{ access_token }}"
                         data-api-url="{{ api_url }}"
-                        data-update-url="{{ api_update_url }}">
+                        data-update-url="{{ api_update_url }}"
+                        data-es-fiscalizador="{{ request.user.es_fiscalizador|yesno:'true,false' }}"
+                        data-es-administrador="{{ request.user.es_administrador|yesno:'true,false' }}">
                     </div>
                 </div>
 
