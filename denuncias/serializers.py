@@ -3,10 +3,39 @@ import logging
 from django.db import OperationalError, ProgrammingError
 from rest_framework import serializers
 
-from .models import Denuncia, DenunciaNotificacion, EstadoDenuncia
+from .models import (
+    Denuncia,
+    DenunciaNotificacion,
+    EstadoDenuncia,
+    ReporteCuadrilla,
+)
 
 
 logger = logging.getLogger(__name__)
+
+
+class ReporteCuadrillaSerializer(serializers.ModelSerializer):
+    jefe_cuadrilla = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ReporteCuadrilla
+        fields = [
+            "id",
+            "comentario",
+            "foto_trabajo",
+            "fecha_reporte",
+            "jefe_cuadrilla",
+        ]
+        read_only_fields = fields
+
+    def get_jefe_cuadrilla(self, obj):
+        jefe = obj.jefe_cuadrilla
+        if not jefe:
+            return None
+        return {
+            "id": jefe.id,
+            "nombre": jefe.get_full_name() or jefe.username,
+        }
 
 
 class DenunciaSerializer(serializers.ModelSerializer):
@@ -14,6 +43,7 @@ class DenunciaSerializer(serializers.ModelSerializer):
         source="get_estado_display", read_only=True
     )
     color = serializers.SerializerMethodField()
+    reporte_cuadrilla = ReporteCuadrillaSerializer(read_only=True)
 
     class Meta:
         model = Denuncia
@@ -76,10 +106,6 @@ class DenunciaAdminSerializer(DenunciaSerializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
-        if "reporte_cuadrilla" in attrs and isinstance(
-            attrs["reporte_cuadrilla"], str
-        ):
-            attrs["reporte_cuadrilla"] = attrs["reporte_cuadrilla"].strip()
 
         instance = getattr(self, "instance", None)
         nuevo_estado = attrs.get("estado")

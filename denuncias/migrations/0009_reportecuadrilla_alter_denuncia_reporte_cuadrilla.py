@@ -5,6 +5,22 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def limpiar_reporte_cuadrilla_vacio(apps, schema_editor):
+    """Normaliza valores vacíos antes de convertir el campo a FK."""
+
+    Denuncia = apps.get_model("denuncias", "Denuncia")
+    # Algunas bases tienen cadenas vacías en lugar de NULL; las limpiamos para
+    # evitar fallos al convertir el campo a bigint.
+    Denuncia.objects.filter(reporte_cuadrilla="").update(reporte_cuadrilla=None)
+
+
+def revertir_limpieza_reporte(apps, schema_editor):
+    """No revertimos la limpieza para mantener la base consistente."""
+
+    # No es necesario restablecer los valores vacíos.
+    return
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -48,6 +64,10 @@ class Migration(migrations.Migration):
             options={
                 "ordering": ("-fecha_reporte",),
             },
+        ),
+        migrations.RunPython(
+            limpiar_reporte_cuadrilla_vacio,
+            revertir_limpieza_reporte,
         ),
         migrations.AlterField(
             model_name="denuncia",

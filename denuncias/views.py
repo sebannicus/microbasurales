@@ -40,7 +40,14 @@ class DenunciaListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        queryset = Denuncia.objects.select_related("usuario").all()
+        queryset = (
+            Denuncia.objects.select_related(
+                "usuario",
+                "reporte_cuadrilla",
+                "reporte_cuadrilla__jefe_cuadrilla",
+            )
+            .all()
+        )
         serializer = DenunciaSerializer(
             queryset, many=True, context={"request": request}
         )
@@ -106,6 +113,7 @@ class MisDenunciasListView(generics.ListAPIView):
     def get_queryset(self):
         return (
             Denuncia.objects.filter(usuario=self.request.user)
+            .select_related("reporte_cuadrilla", "reporte_cuadrilla__jefe_cuadrilla")
             .order_by("-fecha_creacion")
         )
 
@@ -117,7 +125,10 @@ class MiDenunciaRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Denuncia.objects.filter(usuario=self.request.user)
+        return (
+            Denuncia.objects.filter(usuario=self.request.user)
+            .select_related("reporte_cuadrilla", "reporte_cuadrilla__jefe_cuadrilla")
+        )
 
     def perform_update(self, serializer):
         serializer.save(usuario=self.request.user)
@@ -131,7 +142,11 @@ class DenunciaAdminListView(generics.ListAPIView):
     pagination_class = DenunciasPagination
 
     def get_queryset(self):
-        queryset = Denuncia.objects.select_related("usuario").all()
+        queryset = Denuncia.objects.select_related(
+            "usuario",
+            "reporte_cuadrilla",
+            "reporte_cuadrilla__jefe_cuadrilla",
+        ).all()
 
         estado = self.request.query_params.get("estado")
         if estado:
@@ -196,7 +211,11 @@ class DenunciaAdminUpdateView(generics.UpdateAPIView):
         IsFuncionarioMunicipal,
         PuedeEditarDenunciasFinalizadas,
     ]
-    queryset = Denuncia.objects.select_related("usuario").all()
+    queryset = Denuncia.objects.select_related(
+        "usuario",
+        "reporte_cuadrilla",
+        "reporte_cuadrilla__jefe_cuadrilla",
+    ).all()
     http_method_names = ["patch", "put"]
 
     def get_serializer_context(self):

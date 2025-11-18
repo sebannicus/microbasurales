@@ -422,12 +422,9 @@
             })
             .join("");
         const estadoHelpText = obtenerTextoAyudaEstado(estadoActual);
-        const reporteCuadrilla = denuncia.reporte_cuadrilla || "";
-        const puedeEditarReporte = esFiscalizador && estadoActual === "en_gestion";
-        const reporteHelpText = puedeEditarReporte
-            ? "Adjunta la información entregada por la cuadrilla municipal."
-            : "";
-        const reporteAtributos = puedeEditarReporte ? "" : "readonly";
+        const reporteCuadrilla = denuncia.reporte_cuadrilla;
+        const tieneReporte = Boolean(reporteCuadrilla && reporteCuadrilla.id);
+        const reporteDetalleHtml = construirBloqueReporte(reporteCuadrilla);
         const fecha = denuncia.fecha_creacion
             ? new Date(denuncia.fecha_creacion).toLocaleString("es-CL")
             : "Fecha no disponible";
@@ -439,7 +436,7 @@
                 <p class="mb-1"><strong>Descripción:</strong> ${denuncia.descripcion}</p>
                 <p class="mb-1"><strong>Dirección:</strong> ${direccion}</p>
                 <p class="mb-2"><strong>Zona:</strong> ${zona}</p>
-                <form class="update-form" data-estado-actual="${estadoActual}">
+                <form class="update-form" data-estado-actual="${estadoActual}" data-tiene-reporte="${tieneReporte}">
                     <div class="mb-2">
                         <label class="form-label">Actualizar estado</label>
                         <select class="form-select form-select-sm" name="estado" ${
@@ -461,19 +458,36 @@
                     </div>
                     <div class="mb-2 reporte-cuadrilla-group">
                         <label class="form-label">Reporte de cuadrilla</label>
-                        <textarea class="form-control form-control-sm" name="reporte_cuadrilla" ${reporteAtributos}>${escapeHtml(
-                            reporteCuadrilla
-                        )}</textarea>
-                        ${
-                            reporteHelpText
-                                ? `<div class="form-text text-muted">${reporteHelpText}</div>`
-                                : ""
-                        }
+                        ${reporteDetalleHtml}
                     </div>
                     <button type="submit" class="btn btn-sm btn-background w-100">Guardar cambios</button>
                 </form>
                 <div class="small text-muted mt-2">Reportado el ${fecha}</div>
                 <div class="feedback mt-2"></div>
+            </div>
+        `;
+    }
+
+    function construirBloqueReporte(reporte) {
+        if (!reporte) {
+            return `<div class="text-muted small">Aún no se adjunta un reporte de cuadrilla.</div>`;
+        }
+
+        const comentario = escapeHtml(reporte.comentario || "");
+        const jefe = reporte.jefe_cuadrilla
+            ? escapeHtml(reporte.jefe_cuadrilla.nombre || "")
+            : "";
+        const fecha = formatearFecha(reporte.fecha_reporte);
+        const foto = reporte.foto_trabajo
+            ? `<div class="mt-1"><a href="${reporte.foto_trabajo}" target="_blank" rel="noopener" class="link-primary">Ver evidencia fotográfica</a></div>`
+            : "";
+
+        return `
+            <div class="reporte-cuadrilla__detalle small">
+                <p class="mb-1">${comentario || '<span class="text-muted">Sin comentario</span>'}</p>
+                ${jefe ? `<div class="text-muted">Jefe de cuadrilla: ${jefe}</div>` : ""}
+                ${fecha ? `<div class="text-muted">Fecha del reporte: ${fecha}</div>` : ""}
+                ${foto}
             </div>
         `;
     }
@@ -743,7 +757,6 @@
             const formData = new FormData(formulario);
             const payload = {
                 cuadrilla_asignada: (formData.get("cuadrilla_asignada") || "").trim(),
-                reporte_cuadrilla: (formData.get("reporte_cuadrilla") || "").trim(),
             };
 
             const estadoObjetivo = formData.get("estado");
@@ -755,7 +768,7 @@
                 esFiscalizador &&
                 formulario.dataset.estadoActual === "en_gestion" &&
                 payload.estado === "realizado" &&
-                !payload.reporte_cuadrilla
+                formulario.dataset.tieneReporte !== "true"
             ) {
                 feedback.textContent =
                     "Debes adjuntar el reporte de cuadrilla antes de marcar la denuncia como realizada.";
