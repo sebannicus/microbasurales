@@ -134,27 +134,35 @@ class DenunciaAdminListView(generics.ListAPIView):
         estado = self.request.query_params.get("estado")
         if estado:
             estado_normalizado = estado.lower()
-            if estado_normalizado in {"finalizado", "finalizada"}:
-                queryset = queryset.filter(
-                    Q(estado__iexact="finalizado")
-                    | Q(estado__iexact="finalizada")
-                    | Q(estado=Denuncia.EstadoDenuncia.RESUELTA)
-                )
-            else:
-                queryset = queryset.filter(estado=estado)
+            alias_estado = {
+                "en_proceso": Denuncia.EstadoDenuncia.EN_GESTION,
+                "resuelta": Denuncia.EstadoDenuncia.FINALIZADO,
+                "finalizada": Denuncia.EstadoDenuncia.FINALIZADO,
+            }
+            estado_filtrar = alias_estado.get(
+                estado_normalizado, estado_normalizado
+            )
+            queryset = queryset.filter(estado__iexact=estado_filtrar)
 
         excluir_estado = self.request.query_params.get("excluir_estado")
         if excluir_estado:
-            queryset = queryset.exclude(estado__iexact=excluir_estado)
+            alias_excluir = {
+                "en_proceso": Denuncia.EstadoDenuncia.EN_GESTION,
+                "resuelta": Denuncia.EstadoDenuncia.FINALIZADO,
+                "finalizada": Denuncia.EstadoDenuncia.FINALIZADO,
+            }
+            excluir_normalizado = alias_excluir.get(
+                excluir_estado.lower(), excluir_estado
+            )
+            queryset = queryset.exclude(estado__iexact=excluir_normalizado)
 
         solo_activos = self.request.query_params.get("solo_activos")
         if solo_activos is not None:
             valor_normalizado = str(solo_activos).lower()
             if valor_normalizado in {"1", "true", "t", "yes", "on"}:
                 queryset = queryset.exclude(
-                    Q(estado__iexact="finalizado")
+                    Q(estado__iexact=Denuncia.EstadoDenuncia.FINALIZADO)
                     | Q(estado__iexact="finalizada")
-                    | Q(estado=Denuncia.EstadoDenuncia.RESUELTA)
                 )
 
         zona = self.request.query_params.get("zona")
@@ -286,7 +294,7 @@ def _construir_panel_context(request, *, solo_activos=False, solo_finalizados=Fa
     query_params = {}
 
     if solo_finalizados:
-        query_params["estado"] = Denuncia.EstadoDenuncia.RESUELTA
+        query_params["estado"] = Denuncia.EstadoDenuncia.FINALIZADO
     elif solo_activos:
         query_params["solo_activos"] = "1"
 

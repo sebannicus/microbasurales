@@ -2,9 +2,10 @@ from django.conf import settings
 from django.db import models
 
 class EstadoDenuncia(models.TextChoices):
-    PENDIENTE = "pendiente", "Nueva"
-    EN_PROCESO = "en_proceso", "En gestión"
-    RESUELTA = "resuelta", "Finalizada"
+    PENDIENTE = "pendiente", "Pendiente"
+    EN_GESTION = "en_gestion", "En gestión"
+    REALIZADO = "realizado", "Operativo realizado"
+    FINALIZADO = "finalizado", "Finalizado"
 
     @classmethod
     def color_map(cls):
@@ -34,8 +35,9 @@ EstadoDenuncia.COLOR_DEFAULT = "#1d3557"
 
 _ESTADO_DENUNCIA_COLOR_MAP = {
     EstadoDenuncia.PENDIENTE: "#d32f2f",
-    EstadoDenuncia.EN_PROCESO: "#f57c00",
-    EstadoDenuncia.RESUELTA: "#388e3c",
+    EstadoDenuncia.EN_GESTION: "#f57c00",
+    EstadoDenuncia.REALIZADO: "#1976d2",
+    EstadoDenuncia.FINALIZADO: "#388e3c",
 }
 
 
@@ -92,6 +94,12 @@ class Denuncia(models.Model):
         blank=True,
         default="",
         help_text="Equipo responsable de la gestión de la denuncia.",
+    )
+
+    reporte_cuadrilla = models.TextField(
+        blank=True,
+        default="",
+        help_text="Resumen o comprobante entregado por la cuadrilla municipal.",
     )
 
     # Fecha

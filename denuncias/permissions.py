@@ -36,7 +36,7 @@ class PuedeEditarDenunciasFinalizadas(permissions.BasePermission):
         if not isinstance(obj, Denuncia):
             return True
 
-        if obj.estado != Denuncia.EstadoDenuncia.RESUELTA:
+        if obj.estado != Denuncia.EstadoDenuncia.FINALIZADO:
             return True
 
         return bool(getattr(request.user, "es_administrador", False))

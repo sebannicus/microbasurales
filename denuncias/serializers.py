@@ -30,6 +30,7 @@ class DenunciaSerializer(serializers.ModelSerializer):
             "latitud",
             "longitud",
             "cuadrilla_asignada",
+            "reporte_cuadrilla",
             "color",
         ]
         read_only_fields = [
@@ -38,6 +39,7 @@ class DenunciaSerializer(serializers.ModelSerializer):
             "estado",
             "estado_display",
             "cuadrilla_asignada",
+            "reporte_cuadrilla",
             "color",
         ]
 
@@ -72,14 +74,57 @@ class DenunciaAdminSerializer(DenunciaSerializer):
             raise serializers.ValidationError("Estado no válido.")
         return value
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if "reporte_cuadrilla" in attrs and isinstance(
+            attrs["reporte_cuadrilla"], str
+        ):
+            attrs["reporte_cuadrilla"] = attrs["reporte_cuadrilla"].strip()
+
+        instance = getattr(self, "instance", None)
+        nuevo_estado = attrs.get("estado")
+
+        if not instance or not nuevo_estado or nuevo_estado == instance.estado:
+            return attrs
+
+        usuario = self._obtener_usuario()
+
+        if not usuario:
+            raise serializers.ValidationError(
+                {"estado": "No tienes permisos para modificar este registro."}
+            )
+
+        transiciones = self._obtener_transiciones_permitidas(usuario)
+        transiciones_desde_estado = transiciones.get(instance.estado, set())
+
+        if nuevo_estado not in transiciones_desde_estado:
+            raise serializers.ValidationError(
+                {
+                    "estado": (
+                        "No puedes mover la denuncia al estado solicitado desde su estado actual."
+                    )
+                }
+            )
+
+        if (
+            instance.estado == EstadoDenuncia.EN_GESTION
+            and nuevo_estado == EstadoDenuncia.REALIZADO
+        ):
+            reporte = attrs.get("reporte_cuadrilla") or instance.reporte_cuadrilla
+            if not reporte:
+                raise serializers.ValidationError(
+                    {
+                        "reporte_cuadrilla": (
+                            "Debes adjuntar un reporte de cuadrilla antes de marcar la denuncia como realizada."
+                        )
+                    }
+                )
+
+        return attrs
+
     def update(self, instance, validated_data):
         estado_anterior = instance.estado
         nuevo_estado = validated_data.get("estado")
-
-        if nuevo_estado and nuevo_estado != estado_anterior:
-            self._validar_transicion_estado(
-                self.context.get("request"), estado_anterior, nuevo_estado
-            )
 
         instancia_actualizada = super().update(instance, validated_data)
 
@@ -88,26 +133,23 @@ class DenunciaAdminSerializer(DenunciaSerializer):
 
         return instancia_actualizada
 
-    def _validar_transicion_estado(self, request, estado_anterior, nuevo_estado):
-        usuario = getattr(request, "user", None) if request else None
+    def _obtener_usuario(self):
+        request = self.context.get("request") if self.context else None
+        return getattr(request, "user", None)
 
-        if not usuario or getattr(usuario, "es_administrador", False):
-            return
+    def _obtener_transiciones_permitidas(self, usuario):
+        if getattr(usuario, "es_administrador", False):
+            return {
+                EstadoDenuncia.REALIZADO: {EstadoDenuncia.FINALIZADO},
+            }
 
-        transiciones_permitidas = {
-            EstadoDenuncia.PENDIENTE: {EstadoDenuncia.EN_PROCESO},
-            EstadoDenuncia.EN_PROCESO: {EstadoDenuncia.RESUELTA},
-        }
+        if getattr(usuario, "es_fiscalizador", False):
+            return {
+                EstadoDenuncia.PENDIENTE: {EstadoDenuncia.EN_GESTION},
+                EstadoDenuncia.EN_GESTION: {EstadoDenuncia.REALIZADO},
+            }
 
-        if nuevo_estado not in transiciones_permitidas.get(estado_anterior, set()):
-            raise serializers.ValidationError(
-                {
-                    "estado": (
-                        "Solo puedes avanzar una denuncia de 'Nueva' a 'En proceso'"
-                        " o de 'En proceso' a 'Finalizada'."
-                    )
-                }
-            )
+        return {}
 
     def _crear_notificacion_estado(self, denuncia, nuevo_estado):
         mensaje = self._construir_mensaje_notificacion(denuncia)
@@ -130,6 +172,11 @@ class DenunciaAdminSerializer(DenunciaSerializer):
         estado_display = denuncia.get_estado_display()
         if not estado_display:
             return ""
+
+        if denuncia.estado == EstadoDenuncia.FINALIZADO:
+            return (
+                f"Tu denuncia #{denuncia.id} ha sido finalizada por el municipio."
+            )
 
         return f"Tu denuncia #{denuncia.id} cambió de estado a \"{estado_display}\"."
 
