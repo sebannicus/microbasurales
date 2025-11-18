@@ -371,92 +371,69 @@
         actualizarContador(contadorPendientes, denuncias.length);
     }
 
-    function crearFilaPendiente(denuncia) {
-        const fila = document.createElement("tr");
-        fila.dataset.denunciaId = String(denuncia.id);
+    function crearDenunciaCard(denuncia) {
+        const card = document.createElement("article");
+        card.className = "denuncia-card";
+        card.dataset.denunciaId = String(denuncia.id);
 
-        const idTd = document.createElement("td");
-        idTd.textContent = `#${denuncia.id}`;
+        if (denuncia.imagen) {
+            const imagenWrapper = document.createElement("div");
+            imagenWrapper.className = "denuncia-card__imagen-wrapper";
+            const imagen = document.createElement("img");
+            imagen.src = denuncia.imagen;
+            imagen.alt = `Foto evidencia denuncia #${denuncia.id}`;
+            imagenWrapper.appendChild(imagen);
+            card.appendChild(imagenWrapper);
+        }
 
-        const fechaTd = document.createElement("td");
-        fechaTd.textContent = formatearFecha(denuncia.fecha_creacion);
+        const idElemento = document.createElement("p");
+        idElemento.className = "denuncia-card__id mb-0";
+        idElemento.textContent = `Denuncia #${denuncia.id}`;
+        card.appendChild(idElemento);
 
-        const descripcionTd = document.createElement("td");
-        descripcionTd.textContent = resumirTexto(denuncia.descripcion);
+        const fechaElemento = document.createElement("p");
+        fechaElemento.className = "denuncia-card__fecha mb-0";
+        fechaElemento.textContent = formatearFecha(denuncia.fecha_creacion);
+        card.appendChild(fechaElemento);
 
-        const zonaTd = document.createElement("td");
-        zonaTd.textContent = denuncia.zona || "No asignada";
+        const descripcionElemento = document.createElement("p");
+        descripcionElemento.className = "mb-0";
+        descripcionElemento.textContent = denuncia.descripcion || "Sin descripción disponible";
+        card.appendChild(descripcionElemento);
 
-        const denuncianteTd = document.createElement("td");
+        const meta = document.createElement("div");
+        meta.className = "denuncia-card__meta";
+
+        if (denuncia.zona) {
+            const zonaElemento = document.createElement("p");
+            zonaElemento.className = "mb-0";
+            zonaElemento.textContent = `Zona: ${denuncia.zona}`;
+            meta.appendChild(zonaElemento);
+        }
+
         const nombreUsuario =
             denuncia.usuario && denuncia.usuario.nombre
                 ? denuncia.usuario.nombre
-                : "Sin registro";
-        denuncianteTd.textContent = nombreUsuario;
-
-        const accionesTd = document.createElement("td");
-        accionesTd.className = "text-end";
-
-        const btnVisualizar = document.createElement("button");
-        btnVisualizar.type = "button";
-        btnVisualizar.className = "btn btn-outline-secondary btn-sm btn-action me-2";
-        btnVisualizar.textContent = "Visualizar";
-        btnVisualizar.addEventListener("click", () => {
-            centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: false });
-        });
-
-        const btnEditar = document.createElement("button");
-        btnEditar.type = "button";
-        btnEditar.className = "btn btn-background btn-sm btn-action";
-        btnEditar.textContent = "Editar";
-        btnEditar.addEventListener("click", () => {
-            centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: true });
-        });
-
-        accionesTd.appendChild(btnVisualizar);
-        accionesTd.appendChild(btnEditar);
-
-        fila.appendChild(idTd);
-        fila.appendChild(fechaTd);
-        fila.appendChild(descripcionTd);
-        fila.appendChild(zonaTd);
-        fila.appendChild(denuncianteTd);
-        fila.appendChild(accionesTd);
-
-        return fila;
-    }
-
-    function crearResumenItem(denuncia, { mostrarEstado = false } = {}) {
-        const item = document.createElement("div");
-        item.className =
-            "list-group-item py-3 gap-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between";
-        item.dataset.denunciaId = String(denuncia.id);
-
-        const info = document.createElement("div");
-        info.className = "flex-grow-1";
-
-        const encabezado = document.createElement("div");
-        encabezado.className = "fw-semibold";
-        const fechaFormateada = formatearFecha(denuncia.fecha_creacion);
-        const zona = denuncia.zona ? ` · ${denuncia.zona}` : "";
-        encabezado.textContent = `#${denuncia.id} · ${fechaFormateada}${zona}`;
-
-        const descripcion = document.createElement("div");
-        descripcion.className = "text-muted small";
-        descripcion.textContent = resumirTexto(denuncia.descripcion);
-
-        info.appendChild(encabezado);
-        info.appendChild(descripcion);
-
-        if (mostrarEstado) {
-            const estadoLabel = document.createElement("div");
-            estadoLabel.className = "estado-label text-muted";
-            estadoLabel.textContent = obtenerEtiquetaEstado(denuncia);
-            info.appendChild(estadoLabel);
+                : "";
+        if (nombreUsuario) {
+            const denuncianteElemento = document.createElement("p");
+            denuncianteElemento.className = "mb-0";
+            denuncianteElemento.textContent = `Denunciante: ${nombreUsuario}`;
+            meta.appendChild(denuncianteElemento);
         }
 
+        if (meta.children.length) {
+            card.appendChild(meta);
+        }
+
+        const estadoBadge = document.createElement("span");
+        estadoBadge.className = "denuncia-card__estado-badge";
+        estadoBadge.style.backgroundColor = obtenerColorDenuncia(denuncia);
+        estadoBadge.textContent = obtenerEtiquetaEstado(denuncia);
+        card.appendChild(estadoBadge);
+
         const acciones = document.createElement("div");
-        acciones.className = "acciones";
+        acciones.className = "denuncia-card__acciones";
 
         const btnVer = document.createElement("button");
         btnVer.type = "button";
@@ -476,11 +453,18 @@
 
         acciones.appendChild(btnVer);
         acciones.appendChild(btnEditar);
+        card.appendChild(acciones);
 
-        item.appendChild(info);
-        item.appendChild(acciones);
+        return card;
+    }
 
-        return item;
+    function crearFilaPendiente(denuncia) {
+        return crearDenunciaCard(denuncia);
+    }
+
+    function crearResumenItem(denuncia, { mostrarEstado = false } = {}) {
+        void mostrarEstado;
+        return crearDenunciaCard(denuncia);
     }
 
     function centrarDenunciaEnMapa(denunciaId, { enfocarFormulario = false } = {}) {
@@ -559,17 +543,6 @@
             "aria-label",
             `${total} ${total === 1 ? "caso" : "casos"}`
         );
-    }
-
-    function resumirTexto(texto) {
-        if (!texto) {
-            return "Sin descripción";
-        }
-        const limpio = String(texto).trim();
-        if (limpio.length <= 80) {
-            return limpio;
-        }
-        return `${limpio.slice(0, 77)}…`;
     }
 
     function formatearFecha(fechaIso) {
