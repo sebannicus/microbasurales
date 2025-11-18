@@ -121,6 +121,11 @@
                 <li class="nav-item">
                     <a class="nav-link text-white" href="{% url 'perfil' %}">Perfil</a>
                 </li>
+                {% if user.es_administrador %}
+                <li class="nav-item">
+                    <a class="nav-link text-white" href="{% url 'crear_funcionario' %}">Agregar funcionarios</a>
+                </li>
+                {% endif %}
                 <li class="nav-item">
                     <a class="nav-link text-white" href="{% url 'logout' %}">Cerrar Sesión</a>
                 </li>

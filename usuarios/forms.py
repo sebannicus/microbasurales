@@ -50,10 +50,10 @@ class RegistroUsuarioForm(forms.ModelForm):
             raise forms.ValidationError(self.error_messages["password_mismatch"], code="password_mismatch")
         return password2
 
-    def save(self, commit=True):
+    def save(self, commit=True, rol=None):
         usuario = super().save(commit=False)
         usuario.set_password(self.cleaned_data["password1"])
-        usuario.rol = Usuario.Roles.CIUDADANO
+        usuario.rol = rol or Usuario.Roles.CIUDADANO
         if commit:
             usuario.save()
         return usuario

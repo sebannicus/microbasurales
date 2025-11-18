@@ -12,6 +12,7 @@ class Usuario(AbstractUser):
             "Funcionario municipal",
         )
         FISCALIZADOR = "fiscalizador", "Fiscalizador"
+        JEFE_CUADRILLA = "jefe_cuadrilla", "Jefe de cuadrilla"
         ADMINISTRADOR = "administrador", "Administrador"
 
     rol = models.CharField(
@@ -39,6 +40,12 @@ class Usuario(AbstractUser):
         """True para cuentas administrativas o superusuarios."""
 
         return self.rol == self.Roles.ADMINISTRADOR or self.is_superuser
+
+    @property
+    def es_jefe_cuadrilla(self) -> bool:
+        """True para el rol de jefe de cuadrilla."""
+
+        return self.rol == self.Roles.JEFE_CUADRILLA
 
     @property
     def puede_gestionar_denuncias(self) -> bool:

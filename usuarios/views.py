@@ -102,6 +102,43 @@ def register_view(request):
     )
 
 
+@login_required
+@require_http_methods(["GET", "POST"])
+def crear_funcionario_view(request):
+    if not getattr(request.user, "es_administrador", False):
+        messages.error(request, "No tienes permisos para acceder a esta sección.")
+        return redirect("home")
+
+    roles_disponibles = [
+        (Usuario.Roles.FISCALIZADOR, "Fiscalizador"),
+        (Usuario.Roles.JEFE_CUADRILLA, "Jefe de cuadrilla"),
+    ]
+
+    rol_seleccionado = request.POST.get("rol") or roles_disponibles[0][0]
+    form = RegistroUsuarioForm(request.POST or None)
+
+    if request.method == "POST":
+        if rol_seleccionado not in {opcion[0] for opcion in roles_disponibles}:
+            messages.error(request, "Selecciona un rol válido para el nuevo funcionario.")
+        elif form.is_valid():
+            nuevo_usuario = form.save(rol=rol_seleccionado)
+            messages.success(
+                request,
+                f"El usuario {nuevo_usuario.username} fue creado como {dict(roles_disponibles)[rol_seleccionado]}.",
+            )
+            return redirect("crear_funcionario")
+
+    return render(
+        request,
+        "usuarios/crear_funcionarios.html",
+        {
+            "form": form,
+            "roles_disponibles": roles_disponibles,
+            "rol_seleccionado": rol_seleccionado,
+        },
+    )
+
+
 def aviso_legal_view(request):
     return render(request, "aviso_legal.html")
 
