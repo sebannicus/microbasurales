@@ -422,9 +422,12 @@
             })
             .join("");
         const estadoHelpText = obtenerTextoAyudaEstado(estadoActual);
-        const reporteCuadrilla = denuncia.reporte_cuadrilla;
-        const tieneReporte = Boolean(reporteCuadrilla && reporteCuadrilla.id);
-        const reporteDetalleHtml = construirBloqueReporte(reporteCuadrilla);
+        const reporteCuadrilla = denuncia.reporte_cuadrilla || "";
+        const puedeEditarReporte = esFiscalizador && estadoActual === "en_gestion";
+        const reporteHelpText = puedeEditarReporte
+            ? "Adjunta la información entregada por la cuadrilla municipal."
+            : "";
+        const reporteAtributos = puedeEditarReporte ? "" : "readonly";
         const fecha = denuncia.fecha_creacion
             ? new Date(denuncia.fecha_creacion).toLocaleString("es-CL")
             : "Fecha no disponible";
@@ -436,7 +439,7 @@
                 <p class="mb-1"><strong>Descripción:</strong> ${denuncia.descripcion}</p>
                 <p class="mb-1"><strong>Dirección:</strong> ${direccion}</p>
                 <p class="mb-2"><strong>Zona:</strong> ${zona}</p>
-                <form class="update-form" data-estado-actual="${estadoActual}" data-tiene-reporte="${tieneReporte}">
+                <form class="update-form" data-estado-actual="${estadoActual}">
                     <div class="mb-2">
                         <label class="form-label">Actualizar estado</label>
                         <select class="form-select form-select-sm" name="estado" ${
@@ -458,36 +461,19 @@
                     </div>
                     <div class="mb-2 reporte-cuadrilla-group">
                         <label class="form-label">Reporte de cuadrilla</label>
-                        ${reporteDetalleHtml}
+                        <textarea class="form-control form-control-sm" name="reporte_cuadrilla" ${reporteAtributos}>${escapeHtml(
+                            reporteCuadrilla
+                        )}</textarea>
+                        ${
+                            reporteHelpText
+                                ? `<div class="form-text text-muted">${reporteHelpText}</div>`
+                                : ""
+                        }
                     </div>
                     <button type="submit" class="btn btn-sm btn-background w-100">Guardar cambios</button>
                 </form>
                 <div class="small text-muted mt-2">Reportado el ${fecha}</div>
                 <div class="feedback mt-2"></div>
-            </div>
-        `;
-    }
-
-    function construirBloqueReporte(reporte) {
-        if (!reporte) {
-            return `<div class="text-muted small">Aún no se adjunta un reporte de cuadrilla.</div>`;
-        }
-
-        const comentario = escapeHtml(reporte.comentario || "");
-        const jefe = reporte.jefe_cuadrilla
-            ? escapeHtml(reporte.jefe_cuadrilla.nombre || "")
-            : "";
-        const fecha = formatearFecha(reporte.fecha_reporte);
-        const foto = reporte.foto_trabajo
-            ? `<div class="mt-1"><a href="${reporte.foto_trabajo}" target="_blank" rel="noopener" class="link-primary">Ver evidencia fotográfica</a></div>`
-            : "";
-
-        return `
-            <div class="reporte-cuadrilla__detalle small">
-                <p class="mb-1">${comentario || '<span class="text-muted">Sin comentario</span>'}</p>
-                ${jefe ? `<div class="text-muted">Jefe de cuadrilla: ${jefe}</div>` : ""}
-                ${fecha ? `<div class="text-muted">Fecha del reporte: ${fecha}</div>` : ""}
-                ${foto}
             </div>
         `;
     }
@@ -514,69 +500,105 @@
         actualizarContador(contadorPendientes, denuncias.length);
     }
 
-    function crearDenunciaCard(denuncia) {
-        const card = document.createElement("article");
-        card.className = "denuncia-card";
-        card.dataset.denunciaId = String(denuncia.id);
-
-        if (denuncia.imagen) {
-            const imagenWrapper = document.createElement("div");
-            imagenWrapper.className = "denuncia-card__imagen-wrapper";
-            const imagen = document.createElement("img");
-            imagen.src = denuncia.imagen;
-            imagen.alt = `Foto evidencia denuncia #${denuncia.id}`;
-            imagenWrapper.appendChild(imagen);
-            card.appendChild(imagenWrapper);
+    function puedeEditarDenuncia(denuncia) {
+        const estadoActual = normalizarEstado(denuncia.estado);
+        if (esAdministrador) {
+            return estadoActual === "realizado";
         }
-
-        const idElemento = document.createElement("p");
-        idElemento.className = "denuncia-card__id mb-0";
-        idElemento.textContent = `Denuncia #${denuncia.id}`;
-        card.appendChild(idElemento);
-
-        const fechaElemento = document.createElement("p");
-        fechaElemento.className = "denuncia-card__fecha mb-0";
-        fechaElemento.textContent = formatearFecha(denuncia.fecha_creacion);
-        card.appendChild(fechaElemento);
-
-        const descripcionElemento = document.createElement("p");
-        descripcionElemento.className = "mb-0";
-        descripcionElemento.textContent = denuncia.descripcion || "Sin descripción disponible";
-        card.appendChild(descripcionElemento);
-
-        const meta = document.createElement("div");
-        meta.className = "denuncia-card__meta";
-
-        if (denuncia.zona) {
-            const zonaElemento = document.createElement("p");
-            zonaElemento.className = "mb-0";
-            zonaElemento.textContent = `Zona: ${denuncia.zona}`;
-            meta.appendChild(zonaElemento);
+        if (esFiscalizador) {
+            return estadoActual === "pendiente" || estadoActual === "en_gestion";
         }
+        return false;
+    }
 
+    function crearFilaPendiente(denuncia) {
+        const fila = document.createElement("tr");
+        fila.dataset.denunciaId = String(denuncia.id);
+
+        const idTd = document.createElement("td");
+        idTd.textContent = `#${denuncia.id}`;
+
+        const fechaTd = document.createElement("td");
+        fechaTd.textContent = formatearFecha(denuncia.fecha_creacion);
+
+        const descripcionTd = document.createElement("td");
+        descripcionTd.textContent = resumirTexto(denuncia.descripcion);
+
+        const zonaTd = document.createElement("td");
+        zonaTd.textContent = denuncia.zona || "No asignada";
+
+        const denuncianteTd = document.createElement("td");
         const nombreUsuario =
             denuncia.usuario && denuncia.usuario.nombre
                 ? denuncia.usuario.nombre
-                : "";
-        if (nombreUsuario) {
-            const denuncianteElemento = document.createElement("p");
-            denuncianteElemento.className = "mb-0";
-            denuncianteElemento.textContent = `Denunciante: ${nombreUsuario}`;
-            meta.appendChild(denuncianteElemento);
+                : "Sin registro";
+        denuncianteTd.textContent = nombreUsuario;
+
+        const accionesTd = document.createElement("td");
+        accionesTd.className = "text-end";
+
+        const btnVisualizar = document.createElement("button");
+        btnVisualizar.type = "button";
+        btnVisualizar.className = "btn btn-outline-secondary btn-sm btn-action me-2";
+        btnVisualizar.textContent = "Visualizar";
+        btnVisualizar.addEventListener("click", () => {
+            centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: false });
+        });
+
+        accionesTd.appendChild(btnVisualizar);
+
+        if (puedeEditarDenuncia(denuncia)) {
+            const btnEditar = document.createElement("button");
+            btnEditar.type = "button";
+            btnEditar.className = "btn btn-background btn-sm btn-action";
+            btnEditar.textContent = "Editar";
+            btnEditar.addEventListener("click", () => {
+                centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: true });
+            });
+            accionesTd.appendChild(btnEditar);
         }
 
-        if (meta.children.length) {
-            card.appendChild(meta);
-        }
+        fila.appendChild(idTd);
+        fila.appendChild(fechaTd);
+        fila.appendChild(descripcionTd);
+        fila.appendChild(zonaTd);
+        fila.appendChild(denuncianteTd);
+        fila.appendChild(accionesTd);
 
-        const estadoBadge = document.createElement("span");
-        estadoBadge.className = "denuncia-card__estado-badge";
-        estadoBadge.style.backgroundColor = obtenerColorDenuncia(denuncia);
-        estadoBadge.textContent = obtenerEtiquetaEstado(denuncia);
-        card.appendChild(estadoBadge);
+        return fila;
+    }
+
+    function crearResumenItem(denuncia, { mostrarEstado = false } = {}) {
+        const item = document.createElement("div");
+        item.className =
+            "list-group-item py-3 gap-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between";
+        item.dataset.denunciaId = String(denuncia.id);
+
+        const info = document.createElement("div");
+        info.className = "flex-grow-1";
+
+        const encabezado = document.createElement("div");
+        encabezado.className = "fw-semibold";
+        const fechaFormateada = formatearFecha(denuncia.fecha_creacion);
+        const zona = denuncia.zona ? ` · ${denuncia.zona}` : "";
+        encabezado.textContent = `#${denuncia.id} · ${fechaFormateada}${zona}`;
+
+        const descripcion = document.createElement("div");
+        descripcion.className = "text-muted small";
+        descripcion.textContent = resumirTexto(denuncia.descripcion);
+
+        info.appendChild(encabezado);
+        info.appendChild(descripcion);
+
+        if (mostrarEstado) {
+            const estadoLabel = document.createElement("div");
+            estadoLabel.className = "estado-label text-muted";
+            estadoLabel.textContent = obtenerEtiquetaEstado(denuncia);
+            info.appendChild(estadoLabel);
+        }
 
         const acciones = document.createElement("div");
-        acciones.className = "denuncia-card__acciones";
+        acciones.className = "acciones";
 
         const btnVer = document.createElement("button");
         btnVer.type = "button";
@@ -587,19 +609,22 @@
         });
 
         acciones.appendChild(btnVer);
-        acciones.appendChild(btnEditar);
-        card.appendChild(acciones);
 
-        return card;
-    }
+        if (puedeEditarDenuncia(denuncia)) {
+            const btnEditar = document.createElement("button");
+            btnEditar.type = "button";
+            btnEditar.className = "btn btn-background btn-sm";
+            btnEditar.textContent = "Editar";
+            btnEditar.addEventListener("click", () => {
+                centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: true });
+            });
+            acciones.appendChild(btnEditar);
+        }
 
-    function crearFilaPendiente(denuncia) {
-        return crearDenunciaCard(denuncia);
-    }
+        item.appendChild(info);
+        item.appendChild(acciones);
 
-    function crearResumenItem(denuncia, { mostrarEstado = false } = {}) {
-        void mostrarEstado;
-        return crearDenunciaCard(denuncia);
+        return item;
     }
 
     function centrarDenunciaEnMapa(denunciaId, { enfocarFormulario = false } = {}) {
@@ -680,6 +705,17 @@
         );
     }
 
+    function resumirTexto(texto) {
+        if (!texto) {
+            return "Sin descripción";
+        }
+        const limpio = String(texto).trim();
+        if (limpio.length <= 80) {
+            return limpio;
+        }
+        return `${limpio.slice(0, 77)}…`;
+    }
+
     function formatearFecha(fechaIso) {
         if (!fechaIso) {
             return "-";
@@ -757,6 +793,7 @@
             const formData = new FormData(formulario);
             const payload = {
                 cuadrilla_asignada: (formData.get("cuadrilla_asignada") || "").trim(),
+                reporte_cuadrilla: (formData.get("reporte_cuadrilla") || "").trim(),
             };
 
             const estadoObjetivo = formData.get("estado");
@@ -768,7 +805,7 @@
                 esFiscalizador &&
                 formulario.dataset.estadoActual === "en_gestion" &&
                 payload.estado === "realizado" &&
-                formulario.dataset.tieneReporte !== "true"
+                !payload.reporte_cuadrilla
             ) {
                 feedback.textContent =
                     "Debes adjuntar el reporte de cuadrilla antes de marcar la denuncia como realizada.";
