@@ -66,6 +66,9 @@ def login_view(request):
             if rol_usuario == Usuario.Roles.CIUDADANO:
                 return redirect("home")
 
+            if rol_usuario == Usuario.Roles.JEFE_CUADRILLA:
+                return redirect("panel_cuadrilla")
+
             if rol_usuario in {
                 Usuario.Roles.FISCALIZADOR,
                 Usuario.Roles.ADMINISTRADOR,
@@ -121,6 +124,9 @@ def home_ciudadano_view(request):
 @login_required
 def home_view(request):
     rol_usuario = getattr(request.user, "rol", None)
+
+    if rol_usuario == Usuario.Roles.JEFE_CUADRILLA:
+        return redirect("panel_cuadrilla")
 
     if rol_usuario != Usuario.Roles.CIUDADANO:
         return redirect("panel_fiscalizador_activos")

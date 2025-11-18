@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<div class="contenido contenido-fluid">
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="mb-0">Panel de cuadrilla</h2>
+                    <p class="text-muted mb-0">Denuncias en gestión que requieren reporte.</p>
+                </div>
+            </div>
+
+            {% if denuncias %}
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">Fecha</th>
+                            <th scope="col">Foto original</th>
+                            <th scope="col">Descripción</th>
+                            <th scope="col">Dirección / zona</th>
+                            <th scope="col" class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for denuncia in denuncias %}
+                        <tr class="{% if selected_denuncia and selected_denuncia.id == denuncia.id %}table-warning{% endif %}">
+                            <td class="fw-semibold">#{{ denuncia.id }}</td>
+                            <td>{{ denuncia.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if denuncia.imagen %}
+                                    <img src="{{ denuncia.imagen.url }}" alt="Foto denuncia {{ denuncia.id }}" class="img-thumbnail" style="max-width: 120px;">
+                                {% else %}
+                                    <span class="text-muted">Sin foto</span>
+                                {% endif %}
+                            </td>
+                            <td style="min-width: 200px;">
+                                <small class="text-muted">{{ denuncia.descripcion }}</small>
+                            </td>
+                            <td>
+                                {% if denuncia.direccion %}
+                                    <div>{{ denuncia.direccion }}</div>
+                                {% endif %}
+                                {% if denuncia.zona %}
+                                    <span class="badge bg-secondary">Zona {{ denuncia.zona }}</span>
+                                {% endif %}
+                                {% if not denuncia.direccion and not denuncia.zona %}
+                                    <span class="text-muted">Sin datos</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if denuncia.reporte_cuadrilla %}
+                                    <span class="badge bg-success">Reporte cargado</span>
+                                {% else %}
+                                    <a class="btn btn-sm btn-outline-primary" href="{% url 'panel_cuadrilla' %}?denuncia={{ denuncia.id }}">Subir reporte</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <div class="alert alert-info">No hay denuncias en gestión asignadas a la cuadrilla.</div>
+            {% endif %}
+        </div>
+        <div class="col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if selected_denuncia and form %}
+                        <h5 class="card-title">Reporte para la denuncia #{{ selected_denuncia.id }}</h5>
+                        <p class="card-subtitle mb-3 text-muted">
+                            {{ selected_denuncia.direccion|default:"Sin dirección referencial" }}
+                            {% if selected_denuncia.zona %}
+                                · Zona {{ selected_denuncia.zona }}
+                            {% endif %}
+                        </p>
+                        <div class="mb-3">
+                            <strong>Descripción:</strong>
+                            <p class="text-muted mb-0">{{ selected_denuncia.descripcion }}</p>
+                        </div>
+                        {% if selected_denuncia.imagen %}
+                        <div class="mb-3">
+                            <strong>Foto original:</strong>
+                            <img src="{{ selected_denuncia.imagen.url }}" alt="Foto original denuncia {{ selected_denuncia.id }}" class="img-fluid rounded border">
+                        </div>
+                        {% endif %}
+                        <form method="post" enctype="multipart/form-data" class="mt-3">
+                            {% csrf_token %}
+                            {{ form.denuncia_id }}
+                            {% if form.non_field_errors %}
+                                <div class="alert alert-danger py-2">
+                                    {% for error in form.non_field_errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="mb-3">
+                                <label class="form-label" for="{{ form.foto_trabajo.id_for_label }}">Foto del trabajo *</label>
+                                {{ form.foto_trabajo }}
+                                {% for error in form.foto_trabajo.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="{{ form.comentario.id_for_label }}">Comentario *</label>
+                                {{ form.comentario }}
+                                {% for error in form.comentario.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <button type="submit" class="btn btn-background w-100">Enviar reporte</button>
+                        </form>
+                    {% else %}
+                        <h5 class="card-title">Sube el reporte</h5>
+                        <p class="text-muted">Selecciona una denuncia en la tabla y presiona "Subir reporte" para completar la información requerida por el fiscalizador.</p>
+                        <ul class="small text-muted mb-0">
+                            <li>La foto y el comentario son obligatorios.</li>
+                            <li>El reporte no cambia el estado de la denuncia.</li>
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

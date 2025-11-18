@@ -1,6 +1,7 @@
 import logging
 from urllib.parse import urlencode
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import OperationalError, ProgrammingError, connection
 from django.db.models import Q
@@ -13,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from .forms import ReporteCuadrillaForm
 from .models import Denuncia, DenunciaNotificacion, EstadoDenuncia
 from .permissions import IsFuncionarioMunicipal, PuedeEditarDenunciasFinalizadas
 from .serializers import (
@@ -326,6 +328,71 @@ def _panel_fiscalizador_response(request, *, solo_activos=False, solo_finalizado
         solo_finalizados=solo_finalizados,
     )
     return render(request, "denuncias/panel_funcionario.html", context)
+
+
+@login_required
+def panel_cuadrilla(request):
+    """Panel exclusivo para jefes de cuadrilla."""
+
+    if not getattr(request.user, "es_jefe_cuadrilla", False):
+        messages.error(request, "No tienes permisos para acceder a este panel.")
+        return redirect("home_ciudadano")
+
+    denuncias_en_gestion = (
+        Denuncia.objects.filter(estado=Denuncia.EstadoDenuncia.EN_GESTION)
+        .select_related("reporte_cuadrilla")
+        .order_by("-fecha_creacion")
+    )
+
+    form = None
+    selected_denuncia = None
+
+    def _obtener_denuncia(denuncia_id):
+        if not denuncia_id:
+            return None
+        try:
+            return denuncias_en_gestion.get(pk=int(denuncia_id))
+        except (Denuncia.DoesNotExist, ValueError, TypeError):
+            return None
+
+    if request.method == "POST":
+        form = ReporteCuadrillaForm(request.POST, request.FILES)
+        selected_denuncia = _obtener_denuncia(form.data.get("denuncia_id"))
+
+        if form.is_valid():
+            denuncia = selected_denuncia
+            if not denuncia:
+                form.add_error(
+                    None,
+                    "La denuncia seleccionada no está disponible para la cuadrilla.",
+                )
+            elif denuncia.reporte_cuadrilla:
+                form.add_error(
+                    None,
+                    "Esta denuncia ya cuenta con un reporte cargado.",
+                )
+            else:
+                reporte = form.save(commit=False)
+                reporte.denuncia = denuncia
+                reporte.jefe_cuadrilla = request.user
+                reporte.save()
+                denuncia.reporte_cuadrilla = reporte
+                denuncia.save(update_fields=["reporte_cuadrilla"])
+                messages.success(request, "El reporte se cargó correctamente.")
+                return redirect("panel_cuadrilla")
+    else:
+        selected_denuncia = _obtener_denuncia(request.GET.get("denuncia"))
+        if selected_denuncia:
+            form = ReporteCuadrillaForm(
+                initial={"denuncia_id": selected_denuncia.pk}
+            )
+
+    context = {
+        "denuncias": denuncias_en_gestion,
+        "selected_denuncia": selected_denuncia,
+        "form": form,
+    }
+    return render(request, "denuncias/panel_cuadrilla.html", context)
 
 
 @login_required

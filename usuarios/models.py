@@ -11,6 +11,7 @@ class Usuario(AbstractUser):
             "funcionario_municipal",
             "Funcionario municipal",
         )
+        JEFE_CUADRILLA = "jefe_cuadrilla", "Jefe de cuadrilla"
         FISCALIZADOR = "fiscalizador", "Fiscalizador"
         ADMINISTRADOR = "administrador", "Administrador"
 
@@ -33,6 +34,12 @@ class Usuario(AbstractUser):
         """True si el usuario corresponde al rol de fiscalizador."""
 
         return self.rol == self.Roles.FISCALIZADOR
+
+    @property
+    def es_jefe_cuadrilla(self) -> bool:
+        """True cuando el usuario pertenece al rol de jefe de cuadrilla."""
+
+        return self.rol == self.Roles.JEFE_CUADRILLA
 
     @property
     def es_administrador(self) -> bool:

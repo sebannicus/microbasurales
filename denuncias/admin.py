@@ -4,7 +4,12 @@ from django.contrib import admin
 
 from usuarios.models import Usuario
 
-from .models import Denuncia, DenunciaNotificacion, EstadoDenuncia
+from .models import (
+    Denuncia,
+    DenunciaNotificacion,
+    EstadoDenuncia,
+    ReporteCuadrilla,
+)
 
 
 @admin.register(Denuncia)
@@ -37,3 +42,9 @@ class DenunciaNotificacionAdmin(admin.ModelAdmin):
     list_display = ("denuncia", "usuario", "estado_nuevo", "leida", "fecha_creacion")
     list_filter = ("estado_nuevo", "leida", "fecha_creacion")
     search_fields = ("denuncia__descripcion", "usuario__username")
+
+
+@admin.register(ReporteCuadrilla)
+class ReporteCuadrillaAdmin(admin.ModelAdmin):
+    list_display = ("id", "denuncia", "jefe_cuadrilla", "fecha_reporte")
+    search_fields = ("denuncia__descripcion", "jefe_cuadrilla__username")
