@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/auth.css' %}">
+{% endblock extra_head %}
+
+{% block contenido %}
+<div class="container py-5 mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="card-title mb-4">Agregar funcionarios</h2>
+                    <p class="text-muted">Crea nuevas cuentas para fiscalizadores o jefes de cuadrilla. Los usuarios recibirán sus credenciales para acceder al sistema.</p>
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="mb-3">
+                            <label class="form-label" for="id_username">Nombre de usuario</label>
+                            {{ form.username }}
+                            {% for error in form.username.errors %}
+                                <div class="alert alert-danger py-1 px-2 mt-2">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="id_email">Correo electrónico</label>
+                            {{ form.email }}
+                            {% for error in form.email.errors %}
+                                <div class="alert alert-danger py-1 px-2 mt-2">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="id_password1">Contraseña</label>
+                            {{ form.password1 }}
+                            {% for error in form.password1.errors %}
+                                <div class="alert alert-danger py-1 px-2 mt-2">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="id_password2">Confirmar contraseña</label>
+                            {{ form.password2 }}
+                            {% for error in form.password2.errors %}
+                                <div class="alert alert-danger py-1 px-2 mt-2">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label" for="rol">Rol del funcionario</label>
+                            <select class="form-select" id="rol" name="rol">
+                                {% for value, label in roles_disponibles %}
+                                    <option value="{{ value }}" {% if value == rol_seleccionado %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Crear funcionario</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock contenido %}

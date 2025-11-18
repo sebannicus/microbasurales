@@ -48,6 +48,12 @@ class Usuario(AbstractUser):
         return self.rol == self.Roles.ADMINISTRADOR or self.is_superuser
 
     @property
+    def es_jefe_cuadrilla(self) -> bool:
+        """True para el rol de jefe de cuadrilla."""
+
+        return self.rol == self.Roles.JEFE_CUADRILLA
+
+    @property
     def puede_gestionar_denuncias(self) -> bool:
         """Indica si el usuario puede acceder al panel de denuncias especializado."""
 

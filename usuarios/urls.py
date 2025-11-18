@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import (
     RegistroUsuarioView,
     aviso_legal_view,
+    crear_funcionario_view,
     home_view,
     login_view,
     logout_view,
@@ -35,6 +36,7 @@ urlpatterns = [
 
     path('perfil/', PerfilView.as_view(), name='perfil'),
     path('perfil/cambiar-clave/', PerfilPasswordUpdateView.as_view(), name='perfil_cambiar_clave'),
+    path('funcionarios/crear/', crear_funcionario_view, name='crear_funcionario'),
 
 
     path('home/', home_view, name="home"),
