@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+{% if denuncia.estado == "rechazada" %}
+    <h5>Motivo del rechazo:</h5>
+    <p>{{ denuncia.motivo_rechazo }}</p>
+{% endif %}
+{% endblock %}
