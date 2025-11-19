@@ -4,7 +4,7 @@ from django.db import models
 class EstadoDenuncia(models.TextChoices):
     PENDIENTE = "pendiente", "Pendiente"
     EN_GESTION = "en_gestion", "En gestión"
-    REALIZADO = "realizado", "Operativo realizado"
+    REALIZADO = "operativo_realizado", "Operativo realizado"
     FINALIZADO = "finalizado", "Finalizado"
 
     @classmethod
@@ -87,6 +87,7 @@ _ESTADO_DENUNCIA_EQUIVALENCIAS = {
     },
     EstadoDenuncia.REALIZADO: {
         EstadoDenuncia.REALIZADO,
+        "realizado",
         "realizada",
         "realizadas",
         "operativo realizado",

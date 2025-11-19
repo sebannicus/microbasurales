@@ -406,7 +406,8 @@ def panel_cuadrilla(request):
                 reporte.jefe_cuadrilla = request.user
                 reporte.save()
                 denuncia.reporte_cuadrilla = reporte
-                denuncia.save(update_fields=["reporte_cuadrilla"])
+                denuncia.estado = Denuncia.EstadoDenuncia.REALIZADO
+                denuncia.save(update_fields=["reporte_cuadrilla", "estado"])
                 messages.success(request, "El reporte se cargó correctamente.")
                 return redirect("panel_cuadrilla")
     else:
