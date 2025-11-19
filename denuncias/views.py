@@ -368,7 +368,10 @@ def panel_cuadrilla(request):
         return redirect("home_ciudadano")
 
     denuncias_en_gestion = (
-        Denuncia.objects.filter(estado=Denuncia.EstadoDenuncia.EN_GESTION)
+        Denuncia.objects.filter(
+            estado=Denuncia.EstadoDenuncia.EN_GESTION,
+            reporte_cuadrilla__isnull=True,
+        )
         .select_related("reporte_cuadrilla")
         .order_by("-fecha_creacion")
     )
@@ -402,13 +405,12 @@ def panel_cuadrilla(request):
                 )
             else:
                 reporte = form.save(commit=False)
-                reporte.denuncia = denuncia
                 reporte.jefe_cuadrilla = request.user
+                reporte.denuncia = denuncia
                 reporte.save()
 
-                denuncia.reporte_cuadrilla = reporte
                 denuncia.estado = EstadoDenuncia.REALIZADO
-                denuncia.save(update_fields=["reporte_cuadrilla", "estado"])
+                denuncia.save(update_fields=["estado"])
                 messages.success(request, "El reporte se cargó correctamente.")
                 return redirect("panel_cuadrilla")
     else:

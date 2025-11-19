@@ -46,7 +46,10 @@ def generar_csv_mensual(fecha_referencia: date | None = None) -> HttpResponse:
 
     queryset = (
         Denuncia.objects.filter(fecha_creacion__gte=inicio, fecha_creacion__lt=fin)
-        .select_related("reporte_cuadrilla", "reporte_cuadrilla__jefe_cuadrilla")
+        .select_related(
+            "reporte_cuadrilla",
+            "reporte_cuadrilla__jefe_cuadrilla",
+        )
         .order_by("-fecha_creacion")
     )
 

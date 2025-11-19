@@ -577,7 +577,6 @@
     function construirDenunciaHtml(denuncia) {
         const color = obtenerColorDenuncia(denuncia);
         const estadoEtiqueta = escapeHtml(obtenerEtiquetaEstado(denuncia));
-        const estadoValor = escapeHtml(denuncia.estado || "-");
         const fecha = formatearFecha(denuncia.fecha_creacion);
         const descripcion = escapeHtml(
             denuncia.descripcion || "Sin descripción registrada"
@@ -645,6 +644,21 @@
         const galeriaHtml = evidenciaDenuncia || evidenciaReporte
             ? `<div class="denuncia-card__gallery">${evidenciaDenuncia}${evidenciaReporte}</div>`
             : `<div class="denuncia-card__gallery denuncia-card__gallery--empty">Sin material fotográfico disponible.</div>`;
+        const reporteFotoHtml =
+            reporte && reporte.foto_trabajo
+                ? `<div class="denuncia-card__report-photo"><img src="${escapeAttribute(
+                      reporte.foto_trabajo
+                  )}" alt="Foto del trabajo de cuadrilla" loading="lazy"></div>`
+                : "";
+        const reporteDetalleHtml = reporte
+            ? `<ul class="denuncia-card__detail-list">
+                    <li><span>ID reporte</span><strong>${reporteId}</strong></li>
+                    <li><span>Fecha</span><strong>${reporteFecha}</strong></li>
+                    <li><span>Jefe de cuadrilla</span><strong>${jefeCuadrilla}</strong></li>
+                    <li><span>Comentario</span><strong>${reporteComentario}</strong></li>
+                </ul>
+                ${reporteFotoHtml}`
+            : `<p class="text-muted mb-0">Sin reporte registrado.</p>`;
         const miniaturaFuente = denuncia.imagen
             ? denuncia.imagen
             : reporte && reporte.foto_trabajo
@@ -706,11 +720,8 @@
                             </ul>
                         </section>
                         <section class="denuncia-card__detail-group">
-                            <h6>Gestión municipal</h6>
+                            <h6>Ubicación y coordenadas</h6>
                             <ul class="denuncia-card__detail-list">
-                                <li><span>Zona</span><strong>${zona}</strong></li>
-                                <li><span>Dirección municipal</span><strong>${direccion}</strong></li>
-                                <li><span>Cuadrilla asignada</span><strong>${cuadrilla}</strong></li>
                                 <li><span>Coordenadas</span><strong>${
                                     coordenadas
                                         ? escapeHtml(coordenadas)
@@ -718,21 +729,18 @@
                                 }</strong></li>
                                 <li><span>Latitud</span><strong>${latitudTexto}</strong></li>
                                 <li><span>Longitud</span><strong>${longitudTexto}</strong></li>
-                                <li><span>Estado (visual)</span><strong>${estadoEtiqueta}</strong></li>
-                                <li><span>Estado (API)</span><strong>${estadoValor}</strong></li>
-                                <li><span>Color asociado</span><strong>${escapeHtml(
-                                    color
-                                )}</strong></li>
+                                <li><span>Referencia textual</span><strong>${direccionTextual}</strong></li>
+                            </ul>
+                        </section>
+                        <section class="denuncia-card__detail-group">
+                            <h6>Estado de la denuncia</h6>
+                            <ul class="denuncia-card__detail-list">
+                                <li><span>Estado actual</span><strong>${estadoEtiqueta}</strong></li>
                             </ul>
                         </section>
                         <section class="denuncia-card__detail-group">
                             <h6>Reporte de cuadrilla</h6>
-                            <ul class="denuncia-card__detail-list">
-                                <li><span>ID reporte</span><strong>${reporteId}</strong></li>
-                                <li><span>Fecha del reporte</span><strong>${reporteFecha}</strong></li>
-                                <li><span>Jefe de cuadrilla</span><strong>${jefeCuadrilla}</strong></li>
-                                <li><span>Comentario</span><strong>${reporteComentario}</strong></li>
-                            </ul>
+                            ${reporteDetalleHtml}
                         </section>
                     </div>
                     ${galeriaHtml}

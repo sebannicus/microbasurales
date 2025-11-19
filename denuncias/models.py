@@ -195,15 +195,6 @@ class Denuncia(models.Model):
         help_text="Equipo responsable de la gestión de la denuncia.",
     )
 
-    reporte_cuadrilla = models.OneToOneField(
-        "ReporteCuadrilla",
-        on_delete=models.SET_NULL,
-        blank=True,
-        null=True,
-        related_name="+",
-        help_text="Reporte final subido por la cuadrilla municipal.",
-    )
-
     # Fecha
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
@@ -219,6 +210,19 @@ class Denuncia(models.Model):
 
     def __str__(self):
         return f"Denuncia de {self.usuario} ({self.estado})"
+
+    @property
+    def reporte_cuadrilla(self):
+        if hasattr(self, "_cached_reporte_cuadrilla"):
+            return self._cached_reporte_cuadrilla
+
+        try:
+            reporte = self._reporte_cuadrilla_rel
+        except ReporteCuadrilla.DoesNotExist:
+            reporte = None
+
+        self._cached_reporte_cuadrilla = reporte
+        return reporte
 
 
 class DenunciaNotificacion(models.Model):
@@ -251,11 +255,11 @@ class DenunciaNotificacion(models.Model):
 
 class ReporteCuadrilla(models.Model):
     """Registro cargado por la cuadrilla al finalizar su trabajo en terreno."""
-
     denuncia = models.OneToOneField(
         "Denuncia",
         on_delete=models.CASCADE,
-        related_name="+",
+        related_name="_reporte_cuadrilla_rel",
+        related_query_name="reporte_cuadrilla",
     )
     jefe_cuadrilla = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -18,10 +18,16 @@ class DenunciaAdmin(admin.ModelAdmin):
         "id",
         "usuario",
         "estado",
+        "tiene_reporte",
         "fecha_creacion",
     )
     list_filter = ("estado", "fecha_creacion")
     search_fields = ("usuario__username", "descripcion")
+    readonly_fields = ("reporte_cuadrilla",)
+
+    @admin.display(boolean=True, description="Reporte cargado")
+    def tiene_reporte(self, obj):
+        return getattr(obj, "reporte_cuadrilla", None) is not None
 
     def get_queryset(self, request):
         """Limita la vista del funcionario a denuncias pendientes."""
@@ -48,3 +54,17 @@ class DenunciaNotificacionAdmin(admin.ModelAdmin):
 class ReporteCuadrillaAdmin(admin.ModelAdmin):
     list_display = ("id", "denuncia", "jefe_cuadrilla", "fecha_reporte")
     search_fields = ("denuncia__descripcion", "jefe_cuadrilla__username")
+    autocomplete_fields = ["denuncia", "jefe_cuadrilla"]
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        denuncia_field = form.base_fields.get("denuncia")
+        if denuncia_field:
+            queryset = self._denuncias_sin_reporte_queryset()
+            if obj and obj.denuncia_id:
+                queryset = queryset | Denuncia.objects.filter(pk=obj.denuncia_id)
+            denuncia_field.queryset = queryset.distinct()
+        return form
+
+    def _denuncias_sin_reporte_queryset(self):
+        return Denuncia.objects.filter(reporte_cuadrilla__isnull=True)
