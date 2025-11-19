@@ -199,6 +199,15 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 
 # ========================================
+# POWER BI
+# ========================================
+POWERBI_DASHBOARD_EMBED_URL = os.environ.get(
+    "POWERBI_DASHBOARD_EMBED_URL",
+    "https://app.powerbi.com/view?r=eyJrIjoiZGVtby1kYXNoYm9hcmQiLCJuIjoiYXBwLXBvd2VyYmktbWljcm9iYXN1cmFsZXMiLCJ0IjoxfQ%3D%3D",
+)
+
+
+# ========================================
 # DEFAULTS
 # ========================================
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
