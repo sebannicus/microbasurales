@@ -44,6 +44,25 @@
             font-weight: bold;
         }
 
+        .nav-btn {
+            background: #b71c1c;
+            color: #ffffff !important;
+            padding: 8px 14px;
+            border-radius: 8px;
+            margin-right: 10px;
+            text-decoration: none !important;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            font-weight: 500;
+        }
+
+        .nav-btn:hover,
+        .nav-btn:focus {
+            background: #8e0000;
+            color: #ffffff !important;
+        }
+
         /* CONTENIDO */
         .content {
             padding: 20px;
@@ -108,35 +127,35 @@
                     Sistema de Monitoreo Municipal
                 {% endif %}
             </a>
-            <ul class="navbar-nav flex-row align-items-center gap-3 ms-auto">
+            <ul class="navbar-nav flex-row align-items-center gap-2 ms-auto">
                 <li class="nav-item">
-                    <a class="nav-link text-white" href="{% url 'home_ciudadano' %}">Inicio</a>
+                    <a class="nav-btn" href="{% url 'home_ciudadano' %}">Inicio</a>
                 </li>
                 {% if user.is_authenticated and user.puede_gestionar_denuncias %}
                 <li class="nav-item">
-                    <a class="nav-link text-white {% if request.path|is_panel_denuncias %}fw-bold{% endif %}" href="{% url 'panel_denuncias' %}">Panel de denuncias</a>
+                    <a class="nav-btn {% if request.path|is_panel_denuncias %}fw-bold{% endif %}" href="{% url 'panel_denuncias' %}">Panel de denuncias</a>
                 </li>
                 {% endif %}
                 {% if user.is_authenticated and user.es_jefe_cuadrilla %}
                 <li class="nav-item">
-                    <a class="nav-link text-white {% if request.path|startswith:"/panel/cuadrilla/" %}fw-bold{% endif %}" href="{% url 'panel_cuadrilla' %}">Panel cuadrilla</a>
+                    <a class="nav-btn {% if request.path|startswith:"/panel/cuadrilla/" %}fw-bold{% endif %}" href="{% url 'panel_cuadrilla' %}">Panel cuadrilla</a>
                 </li>
                 {% endif %}
                 {% if user.is_authenticated %}
                 <li class="nav-item">
-                    <a class="nav-link text-white" href="{% url 'perfil' %}">Perfil</a>
+                    <a class="nav-btn" href="{% url 'perfil' %}">Perfil</a>
                 </li>
                 {% if user.es_administrador %}
                 <li class="nav-item">
-                    <a class="nav-link text-white {% if request.path|startswith:"/panel/usuarios-sistema/" %}fw-bold{% endif %}"
+                    <a class="nav-btn {% if request.path|startswith:"/panel/usuarios-sistema/" %}fw-bold{% endif %}"
                        href="{% url 'usuarios_sistema' %}">Usuarios del Sistema</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link text-white" href="{% url 'crear_funcionario' %}">Agregar funcionarios</a>
+                    <a class="nav-btn" href="{% url 'crear_funcionario' %}">Agregar funcionarios</a>
                 </li>
                 {% endif %}
                 <li class="nav-item">
-                    <a class="nav-link text-white" href="{% url 'logout' %}">Cerrar Sesión</a>
+                    <a class="nav-btn" href="{% url 'logout' %}">Cerrar Sesión</a>
                 </li>
                 {% endif %}
             </ul>

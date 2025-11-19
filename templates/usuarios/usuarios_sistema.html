@@ -32,15 +32,7 @@
                             <td>{{ usuario.id }}</td>
                             <td class="fw-semibold">{{ usuario.username }}</td>
                             <td>{{ usuario.email|default:"-" }}</td>
-                            <td>
-                                {% if usuario.get_full_name %}
-                                    {{ usuario.get_full_name }}
-                                {% elif usuario.first_name or usuario.last_name %}
-                                    {{ usuario.first_name }} {{ usuario.last_name }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
+                            <td>{{ usuario.username|default:"—" }}</td>
                             <td>
                                 {% if usuario.get_rol_display %}
                                     {{ usuario.get_rol_display }}
