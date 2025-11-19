@@ -30,37 +30,47 @@
             background-color: #f4f4f4;
             color: #232323;
             font-family: Arial, sans-serif;
-            padding-top: 65px; /* evita que el navbar tape el contenido */
+            padding-top: 85px;
         }
 
-        /* NAVBAR ROJO */
-        .navbar {
+        .main-navbar {
             background-color: #c62828 !important;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+            min-height: 75px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
         }
 
-        .navbar-brand {
-            color: #ffffff !important;
-            font-weight: bold;
+        .navbar-toggler {
+            border-color: rgba(255,255,255,0.5);
         }
 
-        .nav-btn {
-            background: #b71c1c;
-            color: #ffffff !important;
-            padding: 8px 14px;
-            border-radius: 8px;
-            margin-right: 10px;
-            text-decoration: none !important;
-            transition: 0.2s;
-            display: inline-flex;
+        .navbar-toggler-icon {
+            filter: invert(1);
+        }
+
+        .navbar-welcome {
+            color: #ffffff;
+            font-size: 1.1rem;
+            font-weight: 700;
+            display: flex;
             align-items: center;
-            font-weight: 500;
+            gap: 10px;
+            padding-left: 8px;
         }
 
-        .nav-btn:hover,
-        .nav-btn:focus {
-            background: #8e0000;
+        .navbar-nav .nav-link {
             color: #ffffff !important;
+            font-weight: 500;
+            padding: 0 16px !important;
+            transition: background-color 0.2s ease;
+            border-bottom: 2px solid transparent;
+        }
+
+        .navbar-nav .nav-link:hover {
+            background-color: rgba(0, 0, 0, 0.15);
+        }
+
+        .navbar-nav .nav-link.active {
+            border-bottom: 2px solid #ffffff;
         }
 
         /* CONTENIDO */
@@ -118,51 +128,62 @@
 
     <!-- NAVBAR SUPERIOR -->
     {% block menu %}
-    <nav class="navbar fixed-top navbar-dark">
-        <div class="container-fluid flex-wrap gap-3">
-            <a class="navbar-brand" href="{% url 'home_ciudadano' %}">
-                {% if user.is_authenticated %}
-                    Bienvenido {{ user.username }}
-                {% else %}
-                    Sistema de Monitoreo Municipal
-                {% endif %}
-            </a>
-            <ul class="navbar-nav flex-row align-items-center gap-2 ms-auto">
-                <li class="nav-item">
-                    <a class="nav-btn" href="{% url 'home_ciudadano' %}">Inicio</a>
-                </li>
-                {% if user.is_authenticated and user.puede_gestionar_denuncias %}
-                <li class="nav-item">
-                    <a class="nav-btn {% if request.path|is_panel_denuncias %}fw-bold{% endif %}" href="{% url 'panel_denuncias' %}">Panel de denuncias</a>
-                </li>
-                {% endif %}
-                {% if user.is_authenticated and user.es_jefe_cuadrilla %}
-                <li class="nav-item">
-                    <a class="nav-btn {% if request.path|startswith:"/panel/cuadrilla/" %}fw-bold{% endif %}" href="{% url 'panel_cuadrilla' %}">Panel cuadrilla</a>
-                </li>
-                {% endif %}
-                {% if user.is_authenticated %}
-                <li class="nav-item">
-                    <a class="nav-btn" href="{% url 'perfil' %}">Perfil</a>
-                </li>
-                {% if user.es_administrador %}
-                <li class="nav-item">
-                    <a class="nav-btn {% if request.path|startswith:"/panel/analitica/" %}fw-bold{% endif %}"
-                       href="{% url 'analitica:dashboard' %}">Analítica del Sistema</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-btn {% if request.path|startswith:"/panel/usuarios-sistema/" %}fw-bold{% endif %}"
-                       href="{% url 'usuarios_sistema' %}">Usuarios del Sistema</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-btn" href="{% url 'crear_funcionario' %}">Agregar funcionarios</a>
-                </li>
-                {% endif %}
-                <li class="nav-item">
-                    <a class="nav-btn" href="{% url 'logout' %}">Cerrar Sesión</a>
-                </li>
-                {% endif %}
-            </ul>
+    {% url 'home_ciudadano' as home_ciudadano_url %}
+    {% url 'panel_denuncias' as panel_denuncias_url %}
+    {% url 'analitica:dashboard' as analitica_url %}
+    {% url 'usuarios_sistema' as usuarios_sistema_url %}
+    {% url 'crear_funcionario' as crear_funcionario_url %}
+    {% url 'perfil' as perfil_url %}
+    {% url 'logout' as logout_url %}
+    <nav class="navbar navbar-expand-lg main-navbar fixed-top">
+        <div class="container-fluid">
+            <div class="navbar-welcome">
+                <i class="bi bi-person-circle"></i>
+                <span>Bienvenido, {{ user.username }}</span>
+            </div>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar"
+                    aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-end" id="mainNavbar">
+                <ul class="navbar-nav align-items-center">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == home_ciudadano_url %}active{% endif %}"
+                           href="{{ home_ciudadano_url }}">Inicio</a>
+                    </li>
+                    {% if user.is_authenticated and user.puede_gestionar_denuncias %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path|is_panel_denuncias %}active{% endif %}"
+                           href="{{ panel_denuncias_url }}">Panel de denuncias</a>
+                    </li>
+                    {% endif %}
+                    {% if user.is_authenticated and user.es_administrador %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path|startswith:"/panel/analitica/" %}active{% endif %}"
+                           href="{{ analitica_url }}">Analítica del Sistema</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path|startswith:"/panel/usuarios-sistema/" %}active{% endif %}"
+                           href="{{ usuarios_sistema_url }}">Usuarios del Sistema</a>
+                    </li>
+                    {% endif %}
+                    {% if user.is_authenticated and user.rol == "administrador" %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == crear_funcionario_url %}active{% endif %}"
+                           href="{{ crear_funcionario_url }}">Agregar Funcionarios</a>
+                    </li>
+                    {% endif %}
+                    {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == perfil_url %}active{% endif %}"
+                           href="{{ perfil_url }}">Perfil</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ logout_url }}">Cerrar Sesión</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
         </div>
     </nav>
     {% endblock menu %}
