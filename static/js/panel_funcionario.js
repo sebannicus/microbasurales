@@ -671,6 +671,7 @@
     }
 
     function construirDenunciaHtml(denuncia) {
+        const estadoNormalizado = normalizarEstado(denuncia.estado);  
         const color = obtenerColorDenuncia(denuncia);
         const estadoEtiqueta = escapeHtml(obtenerEtiquetaEstado(denuncia));
         const fecha = formatearFecha(denuncia.fecha_creacion);
