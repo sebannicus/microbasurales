@@ -8,7 +8,7 @@ from django.contrib.auth import (
 )
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.decorators.http import require_http_methods
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -20,7 +20,12 @@ from rest_framework.response import Response
 from denuncias.models import Denuncia
 from denuncias.serializers import DenunciaCiudadanoSerializer
 
-from .forms import PasswordChangeCustomForm, RegistroUsuarioForm, UserUpdateForm
+from .forms import (
+    PasswordChangeCustomForm,
+    RegistroUsuarioForm,
+    UserUpdateForm,
+    UsuarioAdminUpdateForm,
+)
 from .serializers import UsuarioRegistroSerializer
 
 Usuario = get_user_model()
@@ -260,6 +265,20 @@ class PerfilPasswordUpdateView(PerfilBaseView):
         return render(request, self.template_name, context)
 
 
+class AdminRequiredMixin(LoginRequiredMixin):
+    """Mixin que restringe el acceso únicamente a cuentas administradoras."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
+        if not getattr(request.user, "es_administrador", False):
+            messages.error(request, "Acceso restringido")
+            return redirect("home")
+
+        return super().dispatch(request, *args, **kwargs)
+
+
 class UsuariosSistemaView(LoginRequiredMixin, View):
     """Listado de todos los usuarios, visible solo para administradores."""
 
@@ -280,3 +299,79 @@ class UsuariosSistemaView(LoginRequiredMixin, View):
                 "usuarios": usuarios,
             },
         )
+
+
+class UsuarioEditarView(AdminRequiredMixin, View):
+    template_name = "usuarios/editar_usuario.html"
+
+    def get_object(self, pk):
+        return get_object_or_404(Usuario, pk=pk)
+
+    def get(self, request, pk):
+        usuario_obj = self.get_object(pk)
+        form = UsuarioAdminUpdateForm(instance=usuario_obj)
+        return render(
+            request,
+            self.template_name,
+            {
+                "form": form,
+                "usuario_obj": usuario_obj,
+            },
+        )
+
+    def post(self, request, pk):
+        usuario_obj = self.get_object(pk)
+        form = UsuarioAdminUpdateForm(request.POST, instance=usuario_obj)
+
+        if form.is_valid():
+            if usuario_obj == request.user and not form.cleaned_data.get("is_active"):
+                form.add_error(
+                    "is_active",
+                    "No puedes desactivar tu propia cuenta de administrador.",
+                )
+            else:
+                form.save()
+                messages.success(request, "Los datos del usuario se actualizaron correctamente.")
+                return redirect("usuarios_sistema")
+
+        messages.error(request, "No se pudo actualizar el usuario. Revisa la información.")
+        return render(
+            request,
+            self.template_name,
+            {
+                "form": form,
+                "usuario_obj": usuario_obj,
+            },
+        )
+
+
+class UsuarioEliminarView(AdminRequiredMixin, View):
+    template_name = "usuarios/eliminar_usuario_confirmacion.html"
+
+    def get_object(self, pk):
+        return get_object_or_404(Usuario, pk=pk)
+
+    def get(self, request, pk):
+        usuario_obj = self.get_object(pk)
+        return render(
+            request,
+            self.template_name,
+            {
+                "usuario_obj": usuario_obj,
+            },
+        )
+
+    def post(self, request, pk):
+        usuario_obj = self.get_object(pk)
+
+        if usuario_obj == request.user:
+            messages.error(request, "No puedes eliminar tu propia cuenta mientras está activa.")
+            return redirect("usuarios_sistema")
+
+        if usuario_obj.username.lower() == "admin":
+            messages.error(request, "Por seguridad no se puede eliminar la cuenta 'admin'.")
+            return redirect("usuarios_sistema")
+
+        usuario_obj.delete()
+        messages.success(request, "El usuario fue eliminado correctamente.")
+        return redirect("usuarios_sistema")

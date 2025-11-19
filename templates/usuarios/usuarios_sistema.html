@@ -23,6 +23,7 @@
                     <th scope="col">Creado</th>
                     <th scope="col">Estado</th>
                     <th scope="col">Último login</th>
+                    <th scope="col" class="text-center">Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -57,11 +58,21 @@
                                     -
                                 {% endif %}
                             </td>
+                            <td class="text-center">
+                                <div class="d-flex flex-column flex-md-row gap-2 justify-content-center">
+                                    <a href="{% url 'usuarios_editar' usuario.pk %}" class="btn btn-sm btn-outline-secondary">
+                                        Editar
+                                    </a>
+                                    <a href="{% url 'usuarios_eliminar' usuario.pk %}" class="btn btn-sm btn-outline-danger">
+                                        Eliminar
+                                    </a>
+                                </div>
+                            </td>
                         </tr>
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="10" class="text-center py-4">No hay usuarios registrados.</td>
+                        <td colspan="11" class="text-center py-4">No hay usuarios registrados.</td>
                     </tr>
                 {% endif %}
             </tbody>

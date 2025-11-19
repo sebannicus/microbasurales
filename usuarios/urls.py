@@ -13,6 +13,8 @@ from .views import (
     PerfilView,
     politica_privacidad_view,
     register_view,
+    UsuarioEditarView,
+    UsuarioEliminarView,
     UsuariosSistemaView,
 )
 
@@ -39,6 +41,8 @@ urlpatterns = [
     path('perfil/cambiar-clave/', PerfilPasswordUpdateView.as_view(), name='perfil_cambiar_clave'),
     path('funcionarios/crear/', crear_funcionario_view, name='crear_funcionario'),
     path('panel/usuarios-sistema/', UsuariosSistemaView.as_view(), name='usuarios_sistema'),
+    path('usuarios/editar/<int:pk>/', UsuarioEditarView.as_view(), name='usuarios_editar'),
+    path('usuarios/eliminar/<int:pk>/', UsuarioEliminarView.as_view(), name='usuarios_eliminar'),
 
 
     path('home/', home_view, name="home"),

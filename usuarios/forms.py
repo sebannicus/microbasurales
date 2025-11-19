@@ -59,6 +59,53 @@ class RegistroUsuarioForm(forms.ModelForm):
         return usuario
 
 
+class UsuarioAdminUpdateForm(forms.ModelForm):
+    """Formulario para que el administrador edite cuentas existentes."""
+
+    class Meta:
+        model = Usuario
+        fields = [
+            "username",
+            "email",
+            "first_name",
+            "telefono",
+            "direccion",
+            "rol",
+            "is_active",
+        ]
+        labels = {
+            "username": _("Nombre de usuario"),
+            "email": _("Correo electrónico"),
+            "first_name": _("Nombre"),
+            "telefono": _("Teléfono"),
+            "direccion": _("Dirección"),
+            "rol": _("Rol"),
+            "is_active": _("Usuario activo"),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        roles_permitidos = [
+            Usuario.Roles.CIUDADANO,
+            Usuario.Roles.FISCALIZADOR,
+            Usuario.Roles.JEFE_CUADRILLA,
+            Usuario.Roles.ADMINISTRADOR,
+        ]
+
+        self.fields["rol"].choices = [
+            choice for choice in Usuario.Roles.choices if choice[0] in roles_permitidos
+        ]
+
+        for field in self.fields.values():
+            widget = field.widget
+            existing_classes = widget.attrs.get("class", "")
+            base_class = "form-control"
+            if isinstance(widget, forms.CheckboxInput):
+                base_class = "form-check-input"
+            widget.attrs["class"] = f"{existing_classes} {base_class}".strip()
+
+
 class UserUpdateForm(forms.ModelForm):
     """Permite actualizar la información básica del usuario autenticado."""
 
