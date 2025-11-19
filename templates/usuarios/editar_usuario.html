@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<div class="contenido contenido-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-7">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                <div>
+                    <h2 class="mb-0">Editar usuario</h2>
+                    <p class="text-muted mb-0">Actualiza los datos de {{ usuario_obj.username }}.</p>
+                </div>
+                <a href="{% url 'usuarios_sistema' %}" class="btn btn-outline-secondary">Volver al listado</a>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {% for error in form.non_field_errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="id_username" class="form-label">{{ form.username.label }}</label>
+                                {{ form.username }}
+                                {% for error in form.username.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_email" class="form-label">{{ form.email.label }}</label>
+                                {{ form.email }}
+                                {% for error in form.email.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_first_name" class="form-label">{{ form.first_name.label }}</label>
+                                {{ form.first_name }}
+                                {% for error in form.first_name.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_telefono" class="form-label">{{ form.telefono.label }}</label>
+                                {{ form.telefono }}
+                                {% for error in form.telefono.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-12">
+                                <label for="id_direccion" class="form-label">{{ form.direccion.label }}</label>
+                                {{ form.direccion }}
+                                {% for error in form.direccion.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_rol" class="form-label">{{ form.rol.label }}</label>
+                                {{ form.rol }}
+                                {% for error in form.rol.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6 d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="id_is_active">{{ form.is_active.label }}</label>
+                                </div>
+                                {% for error in form.is_active.errors %}
+                                    <div class="invalid-feedback d-block ms-3">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center gap-3 mt-4 flex-wrap">
+                            <p class="text-muted small mb-0">No puedes desactivar la cuenta actualmente logueada.</p>
+                            <button type="submit" class="btn btn-danger">Guardar cambios</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock contenido %}

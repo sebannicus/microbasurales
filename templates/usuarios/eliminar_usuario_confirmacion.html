@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<div class="contenido contenido-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-xl-5">
+            <div class="card border-danger shadow-sm">
+                <div class="card-body">
+                    <h2 class="text-danger">Eliminar usuario</h2>
+                    <p>Estás a punto de eliminar la cuenta de <strong>{{ usuario_obj.username }}</strong>.</p>
+                    <p class="text-muted">Esta acción no se puede deshacer y los accesos del usuario se revocarán inmediatamente.</p>
+
+                    <dl class="row small mb-4">
+                        <dt class="col-4">Correo</dt>
+                        <dd class="col-8">{{ usuario_obj.email|default:"-" }}</dd>
+                        <dt class="col-4">Rol</dt>
+                        <dd class="col-8">{{ usuario_obj.get_rol_display|default:"-" }}</dd>
+                        <dt class="col-4">Estado</dt>
+                        <dd class="col-8">
+                            {% if usuario_obj.is_active %}
+                                <span class="badge text-bg-success">Activo</span>
+                            {% else %}
+                                <span class="badge text-bg-secondary">Inactivo</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex flex-column flex-md-row gap-3">
+                            <a href="{% url 'usuarios_sistema' %}" class="btn btn-outline-secondary w-100">Cancelar</a>
+                            <button type="submit" class="btn btn-danger w-100">Confirmar eliminación</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock contenido %}
