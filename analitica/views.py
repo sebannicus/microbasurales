@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models import Avg, Count, DurationField, ExpressionWrapper, F
 from django.http import JsonResponse
@@ -165,6 +166,22 @@ class ExportarCSVView(FuncionarioOAdministradorRequiredMixin, TemplateView):
         if request.GET.get("descargar"):
             return generar_csv_mensual()
         return super().get(request, *args, **kwargs)
+
+
+class PowerBIDashboardView(AdministradorRequiredMixin, TemplateView):
+    """Vista dedicada para integrar el dashboard avanzado de Power BI."""
+
+    template_name = "analitica/powerbi_dashboard.html"
+
+    def get_context_data(self, **kwargs: Any) -> Dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context.update(
+            {
+                "powerbi_embed_url": getattr(settings, "POWERBI_DASHBOARD_EMBED_URL", ""),
+                "api_url": self.request.build_absolute_uri(reverse("analitica:powerbi_api")),
+            }
+        )
+        return context
 
 
 class PowerBIDatasetView(AdministradorRequiredMixin, View):
