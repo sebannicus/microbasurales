@@ -10,6 +10,9 @@
     const updateBaseUrl = updateUrlTemplate.replace(/0\/?$/, "");
     const esFiscalizador = mapaElemento.dataset.esFiscalizador === "true";
     const esAdministrador = mapaElemento.dataset.esAdministrador === "true";
+    const jefesCuadrillaUrl = mapaElemento.dataset.jefesUrl || "";
+    let jefesCuadrillaCache = [];
+    let jefesCuadrillaPromise = null;
 
     const ultimaActualizacion = document.getElementById("ultima-actualizacion");
     const filtrosForm = document.getElementById("filtros-form");
@@ -256,6 +259,158 @@
 
     function escapeAttribute(texto) {
         return escapeHtml(texto);
+    }
+
+    async function obtenerJefesCuadrilla() {
+        if (!esFiscalizador || !jefesCuadrillaUrl) {
+            return [];
+        }
+        if (jefesCuadrillaCache.length) {
+            return jefesCuadrillaCache.slice();
+        }
+        if (jefesCuadrillaPromise) {
+            return jefesCuadrillaPromise;
+        }
+        jefesCuadrillaPromise = fetch(jefesCuadrillaUrl, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/json",
+            },
+            credentials: "same-origin",
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Error al cargar los jefes de cuadrilla");
+                }
+                return response.json();
+            })
+            .then((data) => {
+                jefesCuadrillaCache = Array.isArray(data) ? data : [];
+                return jefesCuadrillaCache.slice();
+            })
+            .finally(() => {
+                jefesCuadrillaPromise = null;
+            });
+        return jefesCuadrillaPromise;
+    }
+
+    function prepararSelectorJefe(contenedor) {
+        if (!esFiscalizador) {
+            return;
+        }
+        const wrapper = contenedor.querySelector("[data-selector-jefe]");
+        if (!wrapper || wrapper.dataset.ready === "true") {
+            return;
+        }
+        wrapper.dataset.ready = "true";
+        const lista = wrapper.querySelector("[data-lista-jefes]");
+        const loading = wrapper.querySelector("[data-jefes-loading]");
+        const inputJefe = wrapper.querySelector(
+            'input[name="jefe_cuadrilla_asignado"]'
+        );
+        const inputCuadrilla = wrapper.querySelector(
+            'input[name="cuadrilla_asignada"]'
+        );
+        const seleccionTexto = wrapper.querySelector("[data-jefe-seleccion]");
+
+        if (!lista) {
+            return;
+        }
+
+        if (!jefesCuadrillaUrl) {
+            if (loading) {
+                loading.textContent =
+                    "No hay jefes de cuadrilla disponibles para asignar.";
+            }
+            lista.classList.remove("d-none");
+            lista.innerHTML =
+                "<li class='list-group-item small text-muted'>No hay jefes de cuadrilla configurados.</li>";
+            return;
+        }
+
+        function actualizarSeleccionVisual(jefe) {
+            if (seleccionTexto) {
+                const texto = jefe
+                    ? `Seleccionado: ${escapeHtml(jefe.username)} (#${escapeHtml(
+                          jefe.id
+                      )})`
+                    : "Seleccionado: Ninguno";
+                seleccionTexto.textContent = texto;
+            }
+            if (inputCuadrilla) {
+                inputCuadrilla.value = jefe ? jefe.username : "";
+            }
+            if (inputJefe) {
+                inputJefe.value = jefe ? jefe.id : "";
+            }
+        }
+
+        lista.addEventListener("click", (event) => {
+            const opcion = event.target.closest(".jefe-cuadrilla-opcion");
+            if (!opcion) {
+                return;
+            }
+            const jefeId = Number(opcion.dataset.jefeId);
+            const jefe = jefesCuadrillaCache.find(
+                (item) => Number(item.id) === jefeId
+            );
+            lista
+                .querySelectorAll(".jefe-cuadrilla-opcion")
+                .forEach((item) => item.classList.remove("active"));
+            opcion.classList.add("active");
+            actualizarSeleccionVisual(jefe || null);
+        });
+
+        lista.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== " ") {
+                return;
+            }
+            const opcion = event.target.closest(".jefe-cuadrilla-opcion");
+            if (!opcion) {
+                return;
+            }
+            event.preventDefault();
+            opcion.click();
+        });
+
+        obtenerJefesCuadrilla()
+            .then((jefes) => {
+                lista.innerHTML = "";
+                if (!jefes.length) {
+                    lista.innerHTML =
+                        "<li class='list-group-item small text-muted'>No hay jefes de cuadrilla disponibles.</li>";
+                } else {
+                    const seleccionadoId = inputJefe ? inputJefe.value : "";
+                    jefes.forEach((jefe) => {
+                        const item = document.createElement("li");
+                        item.className =
+                            "list-group-item list-group-item-action jefe-cuadrilla-opcion d-flex justify-content-between align-items-center";
+                        item.dataset.jefeId = jefe.id;
+                        item.tabIndex = 0;
+                        item.innerHTML = `<span>${escapeHtml(
+                            jefe.username
+                        )}</span><span class="text-muted small">#${escapeHtml(
+                            jefe.id
+                        )}</span>`;
+                        if (String(jefe.id) === String(seleccionadoId)) {
+                            item.classList.add("active");
+                        }
+                        lista.appendChild(item);
+                    });
+                }
+                lista.classList.remove("d-none");
+                if (loading) {
+                    loading.classList.add("d-none");
+                }
+            })
+            .catch(() => {
+                lista.innerHTML =
+                    "<li class='list-group-item text-danger small'>No se pudo cargar la lista de jefes de cuadrilla.</li>";
+                lista.classList.remove("d-none");
+                if (loading) {
+                    loading.classList.add("d-none");
+                }
+            });
     }
 
     function obtenerOpcionesEstadoParaUsuario(denuncia) {
@@ -525,7 +680,16 @@
         detalle.classList.add("mb-3");
         wrapper.appendChild(detalle);
 
-        const cuadrilla = denuncia.cuadrilla_asignada || "";
+        const jefeAsignado = denuncia.jefe_cuadrilla_asignado || null;
+        const jefeAsignadoTexto = jefeAsignado
+            ? `${escapeHtml(jefeAsignado.username)} (#${escapeHtml(
+                  jefeAsignado.id
+              )})`
+            : "Ninguno";
+        const cuadrilla =
+            denuncia.cuadrilla_asignada ||
+            (jefeAsignado && jefeAsignado.username) ||
+            "";
         const estadoActual = normalizarEstado(denuncia.estado);
         const estadoOptions = obtenerOpcionesEstadoParaUsuario(denuncia);
         const selectDisabled = estadoOptions.length <= 1;
@@ -559,6 +723,47 @@
               )}">Rechazar denuncia</button>`
             : "";
 
+        const selectorCuadrilla = esFiscalizador
+            ? `
+                    <div class="mb-2" data-selector-jefe>
+                        <label class="form-label">Cuadrilla asignada</label>
+                        <input type="hidden" name="cuadrilla_asignada" value="${escapeAttribute(
+                            cuadrilla
+                        )}">
+                        <input type="hidden" name="jefe_cuadrilla_asignado" value="${
+                            jefeAsignado ? escapeAttribute(jefeAsignado.id) : ""
+                        }">
+                        <div class="accordion accordion-flush">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading-jefe-${escapeAttribute(
+                                    denuncia.id
+                                )}">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#selector-jefe-${escapeAttribute(
+                                        denuncia.id
+                                    )}" aria-expanded="false">
+                                        Seleccionar jefe de cuadrilla
+                                    </button>
+                                </h2>
+                                <div id="selector-jefe-${escapeAttribute(
+                                    denuncia.id
+                                )}" class="accordion-collapse collapse">
+                                    <div class="accordion-body">
+                                        <div class="small text-muted mb-2" data-jefe-seleccion>Seleccionado: ${
+                                            jefeAsignadoTexto
+                                        }</div>
+                                        <div class="text-center small text-muted" data-jefes-loading>Cargando jefes de cuadrilla...</div>
+                                        <ul class="list-group list-group-flush d-none" data-lista-jefes></ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`
+            : `
+                    <div class="mb-2">
+                        <label class="form-label">Jefe de cuadrilla asignado</label>
+                        <p class="form-control-plaintext mb-0">${jefeAsignadoTexto}</p>
+                    </div>`;
+
         wrapper.insertAdjacentHTML(
             "beforeend",
             `
@@ -576,12 +781,7 @@
                                 : ""
                         }
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label">Cuadrilla asignada</label>
-                        <input type="text" class="form-control form-control-sm" name="cuadrilla_asignada" value="${escapeAttribute(
-                            cuadrilla
-                        )}">
-                    </div>
+                    ${selectorCuadrilla}
                     <div class="mb-2 reporte-cuadrilla-group">
                         <label class="form-label">Reporte de cuadrilla</label>
                         <textarea class="form-control form-control-sm" name="reporte_cuadrilla" ${reporteAtributos}>${escapeHtml(
@@ -709,8 +909,16 @@
             usuario.id === 0 || usuario.id
                 ? `#${escapeHtml(usuario.id)}`
                 : "-";
+        const jefeAsignado = denuncia.jefe_cuadrilla_asignado || null;
+        const jefeAsignadoTexto = jefeAsignado
+            ? `${escapeHtml(jefeAsignado.username)} (#${escapeHtml(
+                  jefeAsignado.id
+              )})`
+            : "No asignado";
         const cuadrilla = escapeHtml(
-            denuncia.cuadrilla_asignada || "No asignada"
+            denuncia.cuadrilla_asignada ||
+                (jefeAsignado && jefeAsignado.username) ||
+                "No asignada"
         );
         const reporte = denuncia.reporte_cuadrilla || null;
         const reporteId = reporte && (reporte.id === 0 || reporte.id)
@@ -827,6 +1035,10 @@
                             <span class="denuncia-card__summary-label">Denunciante</span>
                             <span class="denuncia-card__summary-value">${denuncianteNombre}</span>
                         </li>
+                        <li class="denuncia-card__summary-item">
+                            <span class="denuncia-card__summary-label">Jefe asignado</span>
+                            <span class="denuncia-card__summary-value">${jefeAsignadoTexto}</span>
+                        </li>
                         ${resumenMotivoRechazoHtml}
                     </ul>
                 </div>
@@ -864,6 +1076,8 @@
                             <h6>Estado de la denuncia</h6>
                             <ul class="denuncia-card__detail-list">
                                 <li><span>Estado actual</span><strong>${estadoEtiqueta}</strong></li>
+                                <li><span>Cuadrilla asignada</span><strong>${cuadrilla}</strong></li>
+                                <li><span>Jefe designado</span><strong>${jefeAsignadoTexto}</strong></li>
                             </ul>
                         </section>
                         <section class="denuncia-card__detail-group">
@@ -1226,6 +1440,8 @@
         }
         formulario.dataset.listenerAttached = "true";
 
+        prepararSelectorJefe(contenedor);
+
         formulario.addEventListener("submit", async (evt) => {
             evt.preventDefault();
             feedback.textContent = "Guardando cambios...";
@@ -1233,13 +1449,31 @@
 
             const formData = new FormData(formulario);
             const payload = {
-                cuadrilla_asignada: (formData.get("cuadrilla_asignada") || "").trim(),
                 reporte_cuadrilla: (formData.get("reporte_cuadrilla") || "").trim(),
             };
+            const cuadrillaAsignada = formData.get("cuadrilla_asignada");
+            if (cuadrillaAsignada !== null) {
+                payload.cuadrilla_asignada = (cuadrillaAsignada || "").trim();
+            }
+            const jefeSeleccionado = formData.get("jefe_cuadrilla_asignado");
+            if (jefeSeleccionado) {
+                payload.jefe_cuadrilla_asignado = Number(jefeSeleccionado);
+            }
 
             const estadoObjetivo = formData.get("estado");
             if (estadoObjetivo) {
                 payload.estado = estadoObjetivo;
+            }
+
+            if (
+                esFiscalizador &&
+                payload.estado === "en_gestion" &&
+                !payload.jefe_cuadrilla_asignado
+            ) {
+                feedback.textContent =
+                    "Debes seleccionar un jefe de cuadrilla antes de continuar.";
+                feedback.className = "feedback mt-2 text-danger";
+                return;
             }
 
             if (
