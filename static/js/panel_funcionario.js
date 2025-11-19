@@ -59,9 +59,40 @@
         sinFinalizadoElemento.remove();
     }
 
+    const listaRechazadas = document.getElementById("denuncias-rechazadas-list");
+    const sinRechazadasElemento = document.getElementById("sin-denuncias-rechazadas");
+    const contadorRechazadas = document.getElementById("contador-rechazadas");
+    const sinRechazadasTemplate = sinRechazadasElemento
+        ? sinRechazadasElemento.cloneNode(true)
+        : null;
+
+    if (sinRechazadasElemento) {
+        sinRechazadasElemento.remove();
+    }
+
+    const rechazoModalElement = document.getElementById("modalRechazoDenuncia");
+    const rechazoModal =
+        rechazoModalElement && window.bootstrap
+            ? new window.bootstrap.Modal(rechazoModalElement)
+            : null;
+    const rechazoForm = document.getElementById("formRechazoDenuncia");
+    const rechazoError = document.getElementById("rechazo-error");
+    const motivoRechazoSelect = document.getElementById("motivo_rechazo_select");
+    const motivoRechazoComentarioWrapper = document.getElementById(
+        "motivoRechazoComentarioWrapper"
+    );
+    const motivoRechazoComentario = document.getElementById(
+        "motivo_rechazo_comentario"
+    );
+    const rechazoDenunciaIdElemento = rechazoModalElement
+        ? rechazoModalElement.querySelector("[data-rechazo-denuncia-id]")
+        : null;
+    let denunciaRechazoActual = null;
+
     const estadosConfigElement = document.getElementById("estados-config");
     const DEFAULT_ESTADOS_CONFIG = [
         { value: "pendiente", label: "Pendiente", color: "#d32f2f" },
+        { value: "rechazada", label: "Rechazada", color: "#546e7a" },
         { value: "en_gestion", label: "En gestión", color: "#f57c00" },
         { value: "realizado", label: "Realizado", color: "#1976d2" },
         { value: "finalizado", label: "Finalizado", color: "#388e3c" },
@@ -98,6 +129,9 @@
         ["en-proceso", "en_gestion"],
         ["enproceso", "en_gestion"],
         ["gestion", "en_gestion"],
+        ["rechazada", "rechazada"],
+        ["rechazadas", "rechazada"],
+        ["rechazado", "rechazada"],
         ["resuelta", "finalizado"],
         ["resueltas", "finalizado"],
         ["resuelto", "finalizado"],
@@ -275,6 +309,44 @@
         return null;
     }
 
+    const MOTIVOS_RECHAZO_TEXTOS = {
+        foto_insuficiente:
+            "La denuncia no puede procesarse: evidencia insuficiente (foto poco clara).",
+        no_verificada: "No se logró verificar el microbasural en terreno.",
+        datos_insuficientes:
+            "El reporte no contiene datos suficientes para acudir al lugar.",
+        ya_gestionada:
+            "La denuncia ya está siendo gestionada bajo otro caso activo.",
+    };
+    const MOTIVOS_RECHAZO_PREDEFINIDOS = new Set(
+        Object.values(MOTIVOS_RECHAZO_TEXTOS)
+    );
+
+    async function enviarActualizacionDenuncia(denunciaId, payload) {
+        const csrfToken = obtenerCSRFToken();
+        const headers = {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+        };
+
+        if (csrfToken) {
+            headers["X-CSRFToken"] = csrfToken;
+        }
+
+        const respuesta = await fetch(`${updateBaseUrl}${denunciaId}/`, {
+            method: "PATCH",
+            headers,
+            credentials: "same-origin",
+            body: JSON.stringify(payload),
+        });
+
+        if (!respuesta.ok) {
+            const detalle = await extraerMensajeDeError(respuesta);
+            throw new Error(detalle);
+        }
+    }
+
     async function cargarDenuncias(filtros = {}) {
         filtrosActivos = filtros;
         markerLayer.clearLayers();
@@ -294,6 +366,7 @@
             const enGestion = [];
             const realizados = [];
             const finalizados = [];
+            const rechazadas = [];
 
             while (paginaUrl) {
                 const respuesta = await fetch(paginaUrl.toString(), {
@@ -320,6 +393,8 @@
                         realizados.push(denuncia);
                     } else if (estadoNormalizado === "finalizado") {
                         finalizados.push(denuncia);
+                    } else if (estadoNormalizado === "rechazada") {
+                        rechazadas.push(denuncia);
                     }
                 });
 
@@ -353,6 +428,7 @@
             enGestion.sort(comparadorPorFecha);
             realizados.sort(comparadorPorFecha);
             finalizados.sort(comparadorPorFecha);
+            rechazadas.sort(comparadorPorFecha);
 
             ajustarMapa(bounds);
             actualizarMarcaDeTiempo();
@@ -374,6 +450,12 @@
                 listaFinalizado,
                 sinFinalizadoTemplate,
                 contadorFinalizados
+            );
+            actualizarResumenEstado(
+                rechazadas,
+                listaRechazadas,
+                sinRechazadasTemplate,
+                contadorRechazadas
             );
             activarTab(normalizarEstado(filtros.estado));
         } catch (error) {
@@ -400,6 +482,12 @@
                 listaFinalizado,
                 sinFinalizadoTemplate,
                 contadorFinalizados
+            );
+            actualizarResumenEstado(
+                [],
+                listaRechazadas,
+                sinRechazadasTemplate,
+                contadorRechazadas
             );
         }
     }
@@ -459,6 +547,13 @@
         const fecha = denuncia.fecha_creacion
             ? new Date(denuncia.fecha_creacion).toLocaleString("es-CL")
             : "Fecha no disponible";
+        const puedeRechazarDenuncia =
+            esFiscalizador && estadoActual === "pendiente";
+        const botonRechazoHtml = puedeRechazarDenuncia
+            ? `<button type="button" class="btn btn-outline-danger btn-sm w-100 mt-2 btn-rechazar-denuncia" data-denuncia-id="${escapeAttribute(
+                  denuncia.id
+              )}">Rechazar denuncia</button>`
+            : "";
 
         wrapper.insertAdjacentHTML(
             "beforeend",
@@ -496,6 +591,7 @@
                     </div>
                     <button type="submit" class="btn btn-sm btn-background w-100">Guardar cambios</button>
                 </form>
+                ${botonRechazoHtml}
                 <div class="small text-muted mt-2">Reportado el ${fecha}</div>
                 <div class="feedback mt-2"></div>
             `
@@ -578,6 +674,7 @@
         const color = obtenerColorDenuncia(denuncia);
         const estadoEtiqueta = escapeHtml(obtenerEtiquetaEstado(denuncia));
         const estadoValor = escapeHtml(denuncia.estado || "-");
+        const estadoNormalizado = normalizarEstado(denuncia.estado);
         const fecha = formatearFecha(denuncia.fecha_creacion);
         const descripcion = escapeHtml(
             denuncia.descripcion || "Sin descripción registrada"
@@ -655,6 +752,34 @@
                   miniaturaFuente
               )}" alt="Vista previa del caso ${escapeAttribute(denuncia.id)}" loading="lazy">`
             : `<div class="denuncia-card__thumb-placeholder">Sin imagen</div>`;
+        const esRechazada = estadoNormalizado === "rechazada";
+        const motivoRechazoBruto = (denuncia.motivo_rechazo || "").trim();
+        const motivoRechazoHtml = escapeHtml(
+            motivoRechazoBruto || "No disponible"
+        );
+        const comentarioLibreDetalle =
+            esRechazada && motivoRechazoBruto
+            && !MOTIVOS_RECHAZO_PREDEFINIDOS.has(motivoRechazoBruto)
+                ? escapeHtml(motivoRechazoBruto)
+                : "No aplica";
+        const resumenMotivoRechazoHtml =
+            esRechazada && motivoRechazoBruto
+                ? `<li class="denuncia-card__summary-item">
+                        <span class="denuncia-card__summary-label">Motivo del rechazo</span>
+                        <span class="denuncia-card__summary-value">${escapeHtml(
+                            motivoRechazoBruto
+                        )}</span>
+                    </li>`
+                : "";
+        const rechazoDetalleHtml = esRechazada
+            ? `<section class="denuncia-card__detail-group">
+                    <h6>Resumen del rechazo</h6>
+                    <ul class="denuncia-card__detail-list">
+                        <li><span>Motivo del rechazo</span><strong>${motivoRechazoHtml}</strong></li>
+                        <li><span>Comentario libre</span><strong>${comentarioLibreDetalle}</strong></li>
+                    </ul>
+                </section>`
+            : "";
 
         return `
             <header class="denuncia-card__header">
@@ -686,6 +811,7 @@
                             <span class="denuncia-card__summary-label">Denunciante</span>
                             <span class="denuncia-card__summary-value">${denuncianteNombre}</span>
                         </li>
+                        ${resumenMotivoRechazoHtml}
                     </ul>
                 </div>
                 <div class="denuncia-card__thumb">
@@ -734,6 +860,7 @@
                                 <li><span>Comentario</span><strong>${reporteComentario}</strong></li>
                             </ul>
                         </section>
+                        ${rechazoDetalleHtml}
                     </div>
                     ${galeriaHtml}
                 </div>
@@ -872,6 +999,129 @@
         }, 6000);
     }
 
+    function mostrarErrorRechazo(mensaje) {
+        if (!rechazoError) {
+            return;
+        }
+        rechazoError.textContent = mensaje;
+        rechazoError.classList.remove("d-none");
+    }
+
+    function ocultarErrorRechazo() {
+        if (!rechazoError) {
+            return;
+        }
+        rechazoError.textContent = "";
+        rechazoError.classList.add("d-none");
+    }
+
+    function actualizarVisibilidadComentarioRechazo() {
+        if (!motivoRechazoSelect || !motivoRechazoComentarioWrapper) {
+            return;
+        }
+        const mostrar = motivoRechazoSelect.value === "otro";
+        if (mostrar) {
+            motivoRechazoComentarioWrapper.classList.remove("d-none");
+            if (motivoRechazoComentario) {
+                motivoRechazoComentario.focus();
+            }
+        } else {
+            motivoRechazoComentarioWrapper.classList.add("d-none");
+            if (motivoRechazoComentario) {
+                motivoRechazoComentario.value = "";
+            }
+        }
+    }
+
+    function construirTextoMotivoRechazo(opcion, comentario) {
+        if (!opcion) {
+            return "";
+        }
+        if (opcion === "otro") {
+            return (comentario || "").trim();
+        }
+        return MOTIVOS_RECHAZO_TEXTOS[opcion] || opcion;
+    }
+
+    function abrirModalRechazo(denunciaId) {
+        if (!rechazoModal) {
+            return;
+        }
+        denunciaRechazoActual = { id: Number(denunciaId) };
+        if (rechazoDenunciaIdElemento) {
+            rechazoDenunciaIdElemento.textContent = `#${denunciaRechazoActual.id}`;
+        }
+        if (rechazoForm) {
+            rechazoForm.reset();
+        }
+        ocultarErrorRechazo();
+        actualizarVisibilidadComentarioRechazo();
+        rechazoModal.show();
+    }
+
+    if (motivoRechazoSelect) {
+        motivoRechazoSelect.addEventListener(
+            "change",
+            actualizarVisibilidadComentarioRechazo
+        );
+        actualizarVisibilidadComentarioRechazo();
+    }
+
+    if (rechazoForm && rechazoModal) {
+        rechazoForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            if (!denunciaRechazoActual) {
+                mostrarErrorRechazo(
+                    "No pudimos identificar la denuncia que deseas rechazar."
+                );
+                return;
+            }
+            ocultarErrorRechazo();
+            const opcion = motivoRechazoSelect
+                ? motivoRechazoSelect.value
+                : "";
+            const comentario = motivoRechazoComentario
+                ? motivoRechazoComentario.value
+                : "";
+            const motivoFinal = construirTextoMotivoRechazo(
+                opcion,
+                comentario
+            );
+
+            if (!motivoFinal) {
+                const mensaje =
+                    opcion === "otro"
+                        ? "Debes ingresar un comentario para rechazar la denuncia."
+                        : "Debes seleccionar un motivo para rechazar la denuncia.";
+                mostrarErrorRechazo(mensaje);
+                return;
+            }
+
+            try {
+                await enviarActualizacionDenuncia(denunciaRechazoActual.id, {
+                    estado: "rechazada",
+                    motivo_rechazo: motivoFinal,
+                });
+                rechazoModal.hide();
+                denunciaRechazoActual = null;
+                mostrarMensajeGlobal(
+                    "La denuncia fue rechazada correctamente.",
+                    "success"
+                );
+                cargarDenuncias(filtrosActivos);
+            } catch (error) {
+                console.error(error);
+                const mensaje = (error.message || "").includes(
+                    "La denuncia no puede ser rechazada"
+                )
+                    ? "No es posible rechazar esta denuncia: ya se encuentra en gestión."
+                    : error.message ||
+                      "No se pudo rechazar la denuncia en este momento.";
+                mostrarErrorRechazo(mensaje);
+            }
+        });
+    }
+
     map.on("popupopen", (event) => {
         const popupElement = event.popup.getElement();
         if (!popupElement) {
@@ -925,29 +1175,7 @@
             }
 
             try {
-                const csrfToken = obtenerCSRFToken();
-                const headers = {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                    Accept: "application/json",
-                };
-
-                if (csrfToken) {
-                    headers["X-CSRFToken"] = csrfToken;
-                }
-
-                const respuesta = await fetch(`${updateBaseUrl}${denunciaId}/`, {
-                    method: "PATCH",
-                    headers,
-                    credentials: "same-origin",
-                    body: JSON.stringify(payload),
-                });
-
-                if (!respuesta.ok) {
-                    const detalle = await extraerMensajeDeError(respuesta);
-                    throw new Error(detalle);
-                }
-
+                await enviarActualizacionDenuncia(denunciaId, payload);
                 feedback.textContent = "Cambios guardados correctamente";
                 feedback.className = "feedback mt-2 text-success";
                 cargarDenuncias(filtrosActivos);
@@ -958,6 +1186,15 @@
                 feedback.className = "feedback mt-2 text-danger";
             }
         });
+
+        const botonRechazo = contenedor.querySelector(
+            ".btn-rechazar-denuncia"
+        );
+        if (botonRechazo && rechazoModal) {
+            botonRechazo.addEventListener("click", () => {
+                abrirModalRechazo(denunciaId);
+            });
+        }
     });
 
     filtrosForm.addEventListener("submit", (event) => {

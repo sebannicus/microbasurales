@@ -14,6 +14,14 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 
+MOTIVOS_RECHAZO_TEXTOS = {
+    "foto_insuficiente": "La denuncia no puede procesarse: evidencia insuficiente (foto poco clara).",
+    "no_verificada": "No se logró verificar el microbasural en terreno.",
+    "datos_insuficientes": "El reporte no contiene datos suficientes para acudir al lugar.",
+    "ya_gestionada": "La denuncia ya está siendo gestionada bajo otro caso activo.",
+}
+
+
 class ReporteCuadrillaSerializer(serializers.ModelSerializer):
     jefe_cuadrilla = serializers.SerializerMethodField()
 
@@ -64,6 +72,7 @@ class DenunciaSerializer(serializers.ModelSerializer):
             "cuadrilla_asignada",
             "reporte_cuadrilla",
             "color",
+            "motivo_rechazo",
         ]
         read_only_fields = [
             "id",
@@ -73,6 +82,7 @@ class DenunciaSerializer(serializers.ModelSerializer):
             "cuadrilla_asignada",
             "reporte_cuadrilla",
             "color",
+            "motivo_rechazo",
         ]
 
     def get_color(self, obj):
@@ -117,6 +127,7 @@ class DenunciaAdminSerializer(DenunciaSerializer):
         nuevo_estado = attrs.get("estado")
 
         if not instance or not nuevo_estado or nuevo_estado == estado_actual:
+            attrs.pop("motivo_rechazo", None)
             return attrs
 
         usuario = self._obtener_usuario()
@@ -125,6 +136,9 @@ class DenunciaAdminSerializer(DenunciaSerializer):
             raise serializers.ValidationError(
                 {"estado": "No tienes permisos para modificar este registro."}
             )
+
+        if nuevo_estado == EstadoDenuncia.RECHAZADA:
+            self._validar_rechazo(usuario, estado_actual, attrs)
 
         transiciones = self._obtener_transiciones_permitidas(usuario)
         transiciones_desde_estado = transiciones.get(estado_actual, set())
@@ -152,6 +166,9 @@ class DenunciaAdminSerializer(DenunciaSerializer):
                     }
                 )
 
+        if nuevo_estado != EstadoDenuncia.RECHAZADA:
+            attrs.pop("motivo_rechazo", None)
+
         return attrs
 
     def update(self, instance, validated_data):
@@ -159,6 +176,13 @@ class DenunciaAdminSerializer(DenunciaSerializer):
         nuevo_estado = validated_data.get("estado")
 
         instancia_actualizada = super().update(instance, validated_data)
+
+        if (
+            instancia_actualizada.estado != EstadoDenuncia.RECHAZADA
+            and instancia_actualizada.motivo_rechazo
+        ):
+            instancia_actualizada.motivo_rechazo = None
+            instancia_actualizada.save(update_fields=["motivo_rechazo"])
 
         if nuevo_estado and nuevo_estado != estado_anterior:
             self._crear_notificacion_estado(instancia_actualizada, nuevo_estado)
@@ -177,7 +201,10 @@ class DenunciaAdminSerializer(DenunciaSerializer):
 
         if getattr(usuario, "es_fiscalizador", False):
             return {
-                EstadoDenuncia.PENDIENTE: {EstadoDenuncia.EN_GESTION},
+                EstadoDenuncia.PENDIENTE: {
+                    EstadoDenuncia.EN_GESTION,
+                    EstadoDenuncia.RECHAZADA,
+                },
                 EstadoDenuncia.EN_GESTION: {EstadoDenuncia.REALIZADO},
             }
 
@@ -210,7 +237,56 @@ class DenunciaAdminSerializer(DenunciaSerializer):
                 f"Tu denuncia #{denuncia.id} ha sido finalizada por el municipio."
             )
 
+        if denuncia.estado == EstadoDenuncia.RECHAZADA:
+            motivo = denuncia.motivo_rechazo or ""
+            motivo_texto = motivo.strip()
+            if motivo_texto:
+                return f"Tu denuncia ha sido rechazada. Motivo: {motivo_texto}."
+            return "Tu denuncia ha sido rechazada."
+
         return f"Tu denuncia #{denuncia.id} cambió de estado a \"{estado_display}\"."
+
+    def _validar_rechazo(self, usuario, estado_actual, attrs):
+        if not getattr(usuario, "es_fiscalizador", False):
+            raise serializers.ValidationError(
+                {"estado": "Solo personal fiscalizador puede rechazar denuncias."}
+            )
+
+        if estado_actual != EstadoDenuncia.PENDIENTE:
+            raise serializers.ValidationError(
+                {
+                    "estado": (
+                        "La denuncia no puede ser rechazada. Ya está en gestión o en un estado posterior."
+                    )
+                }
+            )
+
+        motivo_normalizado = self._resolver_motivo_rechazo(attrs.get("motivo_rechazo"))
+
+        if not motivo_normalizado:
+            raise serializers.ValidationError(
+                {
+                    "motivo_rechazo": (
+                        "Debes seleccionar un motivo para rechazar la denuncia."
+                    )
+                }
+            )
+
+        attrs["motivo_rechazo"] = motivo_normalizado
+
+    def _resolver_motivo_rechazo(self, valor):
+        if valor is None:
+            return ""
+
+        texto = str(valor).strip()
+        if not texto:
+            return ""
+
+        clave = texto.lower()
+        if clave == "otro":
+            return ""
+
+        return MOTIVOS_RECHAZO_TEXTOS.get(clave, texto)
 
 
 class DenunciaCiudadanoSerializer(DenunciaSerializer):

@@ -553,6 +553,11 @@
                                 Cerrados
                                 <span class="badge bg-secondary ms-1" id="contador-finalizados">0</span>
                             </button>
+
+                            <button type="button" class="btn btn-outline-secondary estado-tab" data-estado="rechazada">
+                                Rechazadas
+                                <span class="badge bg-secondary ms-1" id="contador-rechazadas">0</span>
+                            </button>
                         </div>
 
                     </div>
@@ -596,6 +601,15 @@
                         </div>
                     </div>
 
+                    <!-- RECHAZADAS -->
+                    <div class="estado-panel d-none" data-estado="rechazada">
+                        <div class="denuncias-list" id="denuncias-rechazadas-list">
+                            <div class="denuncia-empty" id="sin-denuncias-rechazadas">
+                                No hay denuncias rechazadas para mostrar.
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </section>
@@ -627,6 +641,42 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- Modal rechazo de denuncia -->
+    <div class="modal fade" id="modalRechazoDenuncia" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Rechazar denuncia <span class="text-muted" data-rechazo-denuncia-id></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <form id="formRechazoDenuncia">
+                    <div class="modal-body">
+                        <p class="text-muted small mb-3">Esta acción notifica al denunciante y no se puede revertir.</p>
+                        <div class="mb-3">
+                            <label class="form-label" for="motivo_rechazo_select">Selecciona un motivo</label>
+                            <select id="motivo_rechazo_select" class="form-select" required>
+                                <option value="foto_insuficiente">La denuncia no puede procesarse: evidencia insuficiente (foto poco clara).</option>
+                                <option value="no_verificada">No se logró verificar el microbasural en terreno.</option>
+                                <option value="datos_insuficientes">El reporte no contiene datos suficientes para acudir al lugar.</option>
+                                <option value="ya_gestionada">La denuncia ya está siendo gestionada bajo otro caso activo.</option>
+                                <option value="otro">Otro (escribir comentario manual)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3 d-none" id="motivoRechazoComentarioWrapper">
+                            <label class="form-label" for="motivo_rechazo_comentario">Describe el motivo</label>
+                            <textarea id="motivo_rechazo_comentario" class="form-control" rows="3" placeholder="Ingresa el motivo del rechazo"></textarea>
+                        </div>
+                        <div class="alert alert-danger d-none" id="rechazo-error" role="alert"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Rechazar denuncia</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock contenido %}

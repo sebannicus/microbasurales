@@ -3,6 +3,7 @@ from django.db import models
 
 class EstadoDenuncia(models.TextChoices):
     PENDIENTE = "pendiente", "Pendiente"
+    RECHAZADA = "rechazada", "Rechazada"
     EN_GESTION = "en_gestion", "En gestión"
     REALIZADO = "operativo_realizado", "Operativo realizado"
     FINALIZADO = "finalizado", "Finalizado"
@@ -78,6 +79,13 @@ _ESTADO_DENUNCIA_EQUIVALENCIAS = {
         "nuevas",
         "nuevos",
     },
+    EstadoDenuncia.RECHAZADA: {
+        EstadoDenuncia.RECHAZADA,
+        "rechazado",
+        "rechazada",
+        "rechazadas",
+        "rechazados",
+    },
     EstadoDenuncia.EN_GESTION: {
         EstadoDenuncia.EN_GESTION,
         "en gestion",
@@ -121,6 +129,8 @@ _ESTADO_DENUNCIA_ALIAS_MAP.update(
         "pendientes": EstadoDenuncia.PENDIENTE,
         "nuevas": EstadoDenuncia.PENDIENTE,
         "nuevo_estado": EstadoDenuncia.PENDIENTE,
+        "rechazadas": EstadoDenuncia.RECHAZADA,
+        "rechazado": EstadoDenuncia.RECHAZADA,
         "en-proceso": EstadoDenuncia.EN_GESTION,
         "gestion": EstadoDenuncia.EN_GESTION,
         "gestionandose": EstadoDenuncia.EN_GESTION,
@@ -134,6 +144,7 @@ _ESTADO_DENUNCIA_ALIAS_MAP.update(
 
 _ESTADO_DENUNCIA_COLOR_MAP = {
     EstadoDenuncia.PENDIENTE: "#d32f2f",
+    EstadoDenuncia.RECHAZADA: "#546e7a",
     EstadoDenuncia.EN_GESTION: "#f57c00",
     EstadoDenuncia.REALIZADO: "#1976d2",
     EstadoDenuncia.FINALIZADO: "#388e3c",
@@ -186,6 +197,12 @@ class Denuncia(models.Model):
         max_length=20,
         choices=EstadoDenuncia.choices,
         default=EstadoDenuncia.PENDIENTE
+    )
+
+    motivo_rechazo = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Motivo detallado cuando la denuncia ha sido rechazada.",
     )
 
     cuadrilla_asignada = models.CharField(
