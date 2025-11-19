@@ -1,5 +1,6 @@
 import logging
 
+from django.contrib.auth import get_user_model
 from django.db import OperationalError, ProgrammingError
 from rest_framework import serializers
 
@@ -7,11 +8,20 @@ from .models import (
     Denuncia,
     DenunciaNotificacion,
     EstadoDenuncia,
+    HistorialEstado,
     ReporteCuadrilla,
 )
 
 
 logger = logging.getLogger(__name__)
+Usuario = get_user_model()
+
+
+class JefeCuadrillaField(serializers.PrimaryKeyRelatedField):
+    def to_representation(self, value):
+        if not value:
+            return None
+        return {"id": value.id, "username": value.username}
 
 
 MOTIVOS_RECHAZO_TEXTOS = {
@@ -54,6 +64,7 @@ class DenunciaSerializer(serializers.ModelSerializer):
     reporte_cuadrilla = ReporteCuadrillaSerializer(
         read_only=True, allow_null=True
     )
+    jefe_cuadrilla_asignado = serializers.SerializerMethodField()
 
     class Meta:
         model = Denuncia
@@ -73,6 +84,7 @@ class DenunciaSerializer(serializers.ModelSerializer):
             "reporte_cuadrilla",
             "color",
             "motivo_rechazo",
+            "jefe_cuadrilla_asignado",
         ]
         read_only_fields = [
             "id",
@@ -83,14 +95,26 @@ class DenunciaSerializer(serializers.ModelSerializer):
             "reporte_cuadrilla",
             "color",
             "motivo_rechazo",
+            "jefe_cuadrilla_asignado",
         ]
 
     def get_color(self, obj):
         return EstadoDenuncia.get_color(obj.estado)
 
+    def get_jefe_cuadrilla_asignado(self, obj):
+        jefe = getattr(obj, "jefe_cuadrilla_asignado", None)
+        if not jefe:
+            return None
+        return {"id": jefe.id, "username": jefe.username}
+
 
 class DenunciaAdminSerializer(DenunciaSerializer):
     usuario = serializers.SerializerMethodField()
+    jefe_cuadrilla_asignado = JefeCuadrillaField(
+        queryset=Usuario.objects.filter(rol=Usuario.Roles.JEFE_CUADRILLA),
+        allow_null=True,
+        required=False,
+    )
 
     class Meta(DenunciaSerializer.Meta):
         fields = DenunciaSerializer.Meta.fields + ["usuario"]
@@ -125,8 +149,17 @@ class DenunciaAdminSerializer(DenunciaSerializer):
             EstadoDenuncia.normalize(instance.estado) if instance else None
         )
         nuevo_estado = attrs.get("estado")
+        jefe_enviado = attrs.get("jefe_cuadrilla_asignado", serializers.empty)
 
         if not instance or not nuevo_estado or nuevo_estado == estado_actual:
+            if jefe_enviado is not serializers.empty:
+                raise serializers.ValidationError(
+                    {
+                        "jefe_cuadrilla_asignado": (
+                            "Solo puedes asignar un jefe de cuadrilla cuando cambias la denuncia a 'En gestión'."
+                        )
+                    }
+                )
             attrs.pop("motivo_rechazo", None)
             return attrs
 
@@ -139,6 +172,34 @@ class DenunciaAdminSerializer(DenunciaSerializer):
 
         if nuevo_estado == EstadoDenuncia.RECHAZADA:
             self._validar_rechazo(usuario, estado_actual, attrs)
+
+        jefe_resultante = (
+            instance.jefe_cuadrilla_asignado if jefe_enviado is serializers.empty else jefe_enviado
+        )
+
+        if nuevo_estado == EstadoDenuncia.EN_GESTION:
+            if not getattr(usuario, "es_fiscalizador", False):
+                raise serializers.ValidationError(
+                    {
+                        "estado": "Solo personal fiscalizador puede mover la denuncia a 'En gestión'."
+                    }
+                )
+            if jefe_resultante is None:
+                raise serializers.ValidationError(
+                    {
+                        "jefe_cuadrilla_asignado": (
+                            "Debes seleccionar un jefe de cuadrilla para continuar."
+                        )
+                    }
+                )
+        elif jefe_enviado is not serializers.empty:
+            raise serializers.ValidationError(
+                {
+                    "jefe_cuadrilla_asignado": (
+                        "Solo puedes asignar un jefe de cuadrilla al cambiar la denuncia a 'En gestión'."
+                    )
+                }
+            )
 
         transiciones = self._obtener_transiciones_permitidas(usuario)
         transiciones_desde_estado = transiciones.get(estado_actual, set())
@@ -186,6 +247,9 @@ class DenunciaAdminSerializer(DenunciaSerializer):
 
         if nuevo_estado and nuevo_estado != estado_anterior:
             self._crear_notificacion_estado(instancia_actualizada, nuevo_estado)
+            self._registrar_historial_estado(
+                instancia_actualizada, estado_anterior, nuevo_estado
+            )
 
         return instancia_actualizada
 
@@ -293,6 +357,22 @@ class DenunciaAdminSerializer(DenunciaSerializer):
             return ""
 
         return MOTIVOS_RECHAZO_TEXTOS.get(clave, texto)
+
+    def _registrar_historial_estado(self, denuncia, estado_anterior, estado_nuevo):
+        responsable = self._obtener_usuario()
+        try:
+            registro = HistorialEstado.objects.create(
+                denuncia=denuncia,
+                estado_anterior=estado_anterior or "",
+                estado_nuevo=estado_nuevo or "",
+                responsable=responsable if getattr(responsable, "is_authenticated", False) else None,
+            )
+            denuncia.historial.add(registro)
+        except (ProgrammingError, OperationalError):
+            logger.warning(
+                "No se pudo registrar el historial del cambio de estado; ¿ejecutaste las migraciones?",
+                exc_info=True,
+            )
 
 
 class DenunciaCiudadanoSerializer(DenunciaSerializer):
