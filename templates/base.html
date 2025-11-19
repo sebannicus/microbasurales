@@ -147,6 +147,10 @@
                 </li>
                 {% if user.es_administrador %}
                 <li class="nav-item">
+                    <a class="nav-btn {% if request.path|startswith:"/panel/analitica/" %}fw-bold{% endif %}"
+                       href="{% url 'analitica:dashboard' %}">Analítica del Sistema</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-btn {% if request.path|startswith:"/panel/usuarios-sistema/" %}fw-bold{% endif %}"
                        href="{% url 'usuarios_sistema' %}">Usuarios del Sistema</a>
                 </li>
