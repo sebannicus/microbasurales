@@ -93,6 +93,7 @@ class PanelCuadrillaViewTests(TestCase):
 
         denuncia.refresh_from_db()
         self.assertIsNotNone(denuncia.reporte_cuadrilla)
+        self.assertEqual(denuncia.estado, EstadoDenuncia.REALIZADO)
         reporte = ReporteCuadrilla.objects.get(denuncia=denuncia)
         self.assertEqual(reporte.jefe_cuadrilla, self.jefe)
         self.assertEqual(reporte.comentario, "Trabajo realizado")

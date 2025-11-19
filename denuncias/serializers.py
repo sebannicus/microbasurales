@@ -111,9 +111,12 @@ class DenunciaAdminSerializer(DenunciaSerializer):
         attrs = super().validate(attrs)
 
         instance = getattr(self, "instance", None)
+        estado_actual = (
+            EstadoDenuncia.normalize(instance.estado) if instance else None
+        )
         nuevo_estado = attrs.get("estado")
 
-        if not instance or not nuevo_estado or nuevo_estado == instance.estado:
+        if not instance or not nuevo_estado or nuevo_estado == estado_actual:
             return attrs
 
         usuario = self._obtener_usuario()
@@ -124,7 +127,7 @@ class DenunciaAdminSerializer(DenunciaSerializer):
             )
 
         transiciones = self._obtener_transiciones_permitidas(usuario)
-        transiciones_desde_estado = transiciones.get(instance.estado, set())
+        transiciones_desde_estado = transiciones.get(estado_actual, set())
 
         if nuevo_estado not in transiciones_desde_estado:
             raise serializers.ValidationError(
@@ -136,7 +139,7 @@ class DenunciaAdminSerializer(DenunciaSerializer):
             )
 
         if (
-            instance.estado == EstadoDenuncia.EN_GESTION
+            estado_actual == EstadoDenuncia.EN_GESTION
             and nuevo_estado == EstadoDenuncia.REALIZADO
         ):
             reporte = attrs.get("reporte_cuadrilla") or instance.reporte_cuadrilla
@@ -152,7 +155,7 @@ class DenunciaAdminSerializer(DenunciaSerializer):
         return attrs
 
     def update(self, instance, validated_data):
-        estado_anterior = instance.estado
+        estado_anterior = EstadoDenuncia.normalize(instance.estado)
         nuevo_estado = validated_data.get("estado")
 
         instancia_actualizada = super().update(instance, validated_data)
