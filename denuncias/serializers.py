@@ -152,7 +152,7 @@ class DenunciaAdminSerializer(DenunciaSerializer):
         jefe_enviado = attrs.get("jefe_cuadrilla_asignado", serializers.empty)
 
         if not instance or not nuevo_estado or nuevo_estado == estado_actual:
-            if jefe_enviado is not serializers.empty:
+            if jefe_enviado is not serializers.empty and jefe_enviado is not None:
                 raise serializers.ValidationError(
                     {
                         "jefe_cuadrilla_asignado": (
@@ -192,7 +192,7 @@ class DenunciaAdminSerializer(DenunciaSerializer):
                         )
                     }
                 )
-        elif jefe_enviado is not serializers.empty:
+        elif jefe_enviado is not serializers.empty and jefe_enviado is not None:
             raise serializers.ValidationError(
                 {
                     "jefe_cuadrilla_asignado": (

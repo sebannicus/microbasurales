@@ -27,7 +27,7 @@ urlpatterns = [
         name="denuncias_admin_update",
     ),
     path(
-        "admin/jefes-cuadrilla/",
+        "jefes-cuadrilla/",
         JefesCuadrillaListView.as_view(),
         name="jefes_cuadrilla_list",
     ),

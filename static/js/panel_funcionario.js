@@ -261,36 +261,44 @@
         return escapeHtml(texto);
     }
 
-    async function obtenerJefesCuadrilla() {
+    async function cargarJefesCuadrilla() {
         if (!esFiscalizador || !jefesCuadrillaUrl) {
             return [];
         }
+
         if (jefesCuadrillaCache.length) {
             return jefesCuadrillaCache.slice();
         }
+
         if (jefesCuadrillaPromise) {
             return jefesCuadrillaPromise;
         }
-        jefesCuadrillaPromise = fetch(jefesCuadrillaUrl, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/json",
-            },
-            credentials: "same-origin",
-        })
-            .then((response) => {
+
+        jefesCuadrillaPromise = (async () => {
+            try {
+                const response = await fetch(jefesCuadrillaUrl, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: "application/json",
+                    },
+                });
+
                 if (!response.ok) {
-                    throw new Error("Error al cargar los jefes de cuadrilla");
+                    console.error("Error cargando jefes:", response.status);
+                    return [];
                 }
-                return response.json();
-            })
-            .then((data) => {
+
+                const data = await response.json();
                 jefesCuadrillaCache = Array.isArray(data) ? data : [];
                 return jefesCuadrillaCache.slice();
-            })
-            .finally(() => {
+            } catch (error) {
+                console.error("Error cargando jefes:", error);
+                return [];
+            } finally {
                 jefesCuadrillaPromise = null;
-            });
+            }
+        })();
+
         return jefesCuadrillaPromise;
     }
 
@@ -373,7 +381,7 @@
             opcion.click();
         });
 
-        obtenerJefesCuadrilla()
+        cargarJefesCuadrilla()
             .then((jefes) => {
                 lista.innerHTML = "";
                 if (!jefes.length) {
@@ -751,8 +759,10 @@
                                         <div class="small text-muted mb-2" data-jefe-seleccion>Seleccionado: ${
                                             jefeAsignadoTexto
                                         }</div>
-                                        <div class="text-center small text-muted" data-jefes-loading>Cargando jefes de cuadrilla...</div>
-                                        <ul class="list-group list-group-flush d-none" data-lista-jefes></ul>
+                                        <div id="lista-jefes">
+                                            <div class="text-center small text-muted" data-jefes-loading>Cargando jefes de cuadrilla...</div>
+                                            <ul class="list-group list-group-flush d-none" data-lista-jefes></ul>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
