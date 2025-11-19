@@ -582,9 +582,6 @@
             denuncia.descripcion || "Sin descripción registrada"
         );
         const zona = escapeHtml(denuncia.zona || "No asignada");
-        const direccion = escapeHtml(
-            denuncia.direccion || "Sin dirección registrada"
-        );
         const direccionTextual = escapeHtml(
             denuncia.direccion_textual || "Sin referencia del denunciante"
         );
@@ -691,10 +688,6 @@
                         <li class="denuncia-card__summary-item">
                             <span class="denuncia-card__summary-label">Zona</span>
                             <span class="denuncia-card__summary-value">${zona}</span>
-                        </li>
-                        <li class="denuncia-card__summary-item">
-                            <span class="denuncia-card__summary-label">Dirección municipal</span>
-                            <span class="denuncia-card__summary-value">${direccion}</span>
                         </li>
                         <li class="denuncia-card__summary-item">
                             <span class="denuncia-card__summary-label">Denunciante</span>

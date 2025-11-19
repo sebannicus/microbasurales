@@ -23,6 +23,7 @@ from .serializers import (
     DenunciaSerializer,
     NotificacionDenunciaSerializer,
 )
+from .utils import obtener_zona_por_coordenadas
 
 
 logger = logging.getLogger(__name__)
@@ -85,7 +86,6 @@ class DenunciaListCreateView(APIView):
         latitud = request.data.get("latitud")
         longitud = request.data.get("longitud")
         direccion = request.data.get("direccion", "").strip()
-        zona = request.data.get("zona", "").strip()
         imagen = request.FILES.get("imagen")
 
         if not descripcion:
@@ -115,6 +115,11 @@ class DenunciaListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        zona_calculada = obtener_zona_por_coordenadas(
+            latitud_valor,
+            longitud_valor,
+        )
+
         denuncia = Denuncia.objects.create(
             usuario=request.user,
             descripcion=descripcion,
@@ -123,7 +128,7 @@ class DenunciaListCreateView(APIView):
             latitud=latitud_valor,
             longitud=longitud_valor,
             direccion=direccion,
-            zona=zona,
+            zona=zona_calculada,
         )
 
         serializer = DenunciaSerializer(denuncia, context={"request": request})
