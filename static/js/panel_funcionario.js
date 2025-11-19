@@ -14,7 +14,7 @@
     const ultimaActualizacion = document.getElementById("ultima-actualizacion");
     const filtrosForm = document.getElementById("filtros-form");
     const recargarBtn = document.getElementById("recargar-btn");
-    const tablaPendientesBody = document.getElementById("denuncias-pendientes-body");
+    const listaPendientes = document.getElementById("denuncias-pendientes-list");
     const sinDenunciasRow = document.getElementById("sin-denuncias-pendientes");
     const contadorPendientes = document.getElementById("contador-pendientes");
     const sinDenunciasTemplate = sinDenunciasRow ? sinDenunciasRow.cloneNode(true) : null;
@@ -361,22 +361,19 @@
                 enGestion,
                 listaEnGestion,
                 sinEnGestionTemplate,
-                contadorEnGestion,
-                { mostrarEstado: false }
+                contadorEnGestion
             );
             actualizarResumenEstado(
                 realizados,
                 listaRealizado,
                 sinRealizadoTemplate,
-                contadorRealizados,
-                { mostrarEstado: false }
+                contadorRealizados
             );
             actualizarResumenEstado(
                 finalizados,
                 listaFinalizado,
                 sinFinalizadoTemplate,
-                contadorFinalizados,
-                { mostrarEstado: true }
+                contadorFinalizados
             );
             activarTab(normalizarEstado(filtros.estado));
         } catch (error) {
@@ -429,11 +426,14 @@
     }
 
     function construirPopup(denuncia) {
-        const imagenHtml = denuncia.imagen
-            ? `<img src="${denuncia.imagen}" class="img-fluid rounded mb-2" alt="Evidencia">`
-            : "";
-        const direccion = denuncia.direccion || "Sin dirección registrada";
-        const zona = denuncia.zona || "No asignada";
+        const wrapper = document.createElement("div");
+        wrapper.className = "popup-denuncia";
+        wrapper.dataset.id = denuncia.id;
+
+        const detalle = renderDenuncia(denuncia, { mostrarAcciones: false });
+        detalle.classList.add("mb-3");
+        wrapper.appendChild(detalle);
+
         const cuadrilla = denuncia.cuadrilla_asignada || "";
         const estadoActual = normalizarEstado(denuncia.estado);
         const estadoOptions = obtenerOpcionesEstadoParaUsuario(denuncia);
@@ -447,7 +447,10 @@
             })
             .join("");
         const estadoHelpText = obtenerTextoAyudaEstado(estadoActual);
-        const reporteCuadrilla = denuncia.reporte_cuadrilla || "";
+        let reporteCuadrilla = denuncia.reporte_cuadrilla || "";
+        if (reporteCuadrilla && typeof reporteCuadrilla === "object") {
+            reporteCuadrilla = reporteCuadrilla.comentario || "";
+        }
         const puedeEditarReporte = esFiscalizador && estadoActual === "en_gestion";
         const reporteHelpText = puedeEditarReporte
             ? "Adjunta la información entregada por la cuadrilla municipal."
@@ -457,13 +460,9 @@
             ? new Date(denuncia.fecha_creacion).toLocaleString("es-CL")
             : "Fecha no disponible";
 
-        return `
-            <div class="popup-denuncia" data-id="${denuncia.id}">
-                ${imagenHtml}
-                <p class="mb-1"><strong>Estado actual:</strong> <span class="estado-badge" style="color: ${obtenerColorDenuncia(denuncia)};">${obtenerEtiquetaEstado(denuncia)}</span></p>
-                <p class="mb-1"><strong>Descripción:</strong> ${denuncia.descripcion}</p>
-                <p class="mb-1"><strong>Dirección:</strong> ${direccion}</p>
-                <p class="mb-2"><strong>Zona:</strong> ${zona}</p>
+        wrapper.insertAdjacentHTML(
+            "beforeend",
+            `
                 <form class="update-form" data-estado-actual="${estadoActual}">
                     <div class="mb-2">
                         <label class="form-label">Actualizar estado</label>
@@ -499,26 +498,28 @@
                 </form>
                 <div class="small text-muted mt-2">Reportado el ${fecha}</div>
                 <div class="feedback mt-2"></div>
-            </div>
-        `;
+            `
+        );
+
+        return wrapper.outerHTML;
     }
 
     function actualizarTablaPendientes(denuncias) {
-        if (!tablaPendientesBody) {
+        if (!listaPendientes) {
             return;
         }
 
-        tablaPendientesBody.innerHTML = "";
+        listaPendientes.innerHTML = "";
 
         if (!denuncias.length) {
             if (sinDenunciasTemplate) {
-                const filaVacia = sinDenunciasTemplate.cloneNode(true);
-                filaVacia.id = "";
-                tablaPendientesBody.appendChild(filaVacia);
+                const vacio = sinDenunciasTemplate.cloneNode(true);
+                vacio.id = "";
+                listaPendientes.appendChild(vacio);
             }
         } else {
             denuncias.forEach((denuncia) => {
-                tablaPendientesBody.appendChild(crearFilaPendiente(denuncia));
+                listaPendientes.appendChild(renderDenuncia(denuncia));
             });
         }
 
@@ -536,120 +537,174 @@
         return false;
     }
 
-    function crearFilaPendiente(denuncia) {
-        const fila = document.createElement("tr");
-        fila.dataset.denunciaId = String(denuncia.id);
-
-        const idTd = document.createElement("td");
-        idTd.textContent = `#${denuncia.id}`;
-
-        const fechaTd = document.createElement("td");
-        fechaTd.textContent = formatearFecha(denuncia.fecha_creacion);
-
-        const descripcionTd = document.createElement("td");
-        descripcionTd.textContent = resumirTexto(denuncia.descripcion);
-
-        const zonaTd = document.createElement("td");
-        zonaTd.textContent = denuncia.zona || "No asignada";
-
-        const denuncianteTd = document.createElement("td");
-        const nombreUsuario =
-            denuncia.usuario && denuncia.usuario.nombre
-                ? denuncia.usuario.nombre
-                : "Sin registro";
-        denuncianteTd.textContent = nombreUsuario;
-
-        const accionesTd = document.createElement("td");
-        accionesTd.className = "text-end";
-
-        const btnVisualizar = document.createElement("button");
-        btnVisualizar.type = "button";
-        btnVisualizar.className = "btn btn-outline-secondary btn-sm btn-action me-2";
-        btnVisualizar.textContent = "Visualizar";
-        btnVisualizar.addEventListener("click", () => {
-            centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: false });
-        });
-
-        accionesTd.appendChild(btnVisualizar);
-
-        if (puedeEditarDenuncia(denuncia)) {
-            const btnEditar = document.createElement("button");
-            btnEditar.type = "button";
-            btnEditar.className = "btn btn-background btn-sm btn-action";
-            btnEditar.textContent = "Editar";
-            btnEditar.addEventListener("click", () => {
-                centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: true });
-            });
-            accionesTd.appendChild(btnEditar);
-        }
-
-        fila.appendChild(idTd);
-        fila.appendChild(fechaTd);
-        fila.appendChild(descripcionTd);
-        fila.appendChild(zonaTd);
-        fila.appendChild(denuncianteTd);
-        fila.appendChild(accionesTd);
-
-        return fila;
-    }
-
-    function crearResumenItem(denuncia, { mostrarEstado = false } = {}) {
-        const item = document.createElement("div");
-        item.className =
-            "list-group-item py-3 gap-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between";
+    function renderDenuncia(denuncia, opciones = {}) {
+        const { mostrarAcciones = true } = opciones;
+        const item = document.createElement("article");
+        item.className = "denuncia-card";
         item.dataset.denunciaId = String(denuncia.id);
+        item.innerHTML = construirDenunciaHtml(denuncia);
 
-        const info = document.createElement("div");
-        info.className = "flex-grow-1";
+        if (mostrarAcciones) {
+            const acciones = document.createElement("div");
+            acciones.className = "denuncia-card__actions";
 
-        const encabezado = document.createElement("div");
-        encabezado.className = "fw-semibold";
-        const fechaFormateada = formatearFecha(denuncia.fecha_creacion);
-        const zona = denuncia.zona ? ` · ${denuncia.zona}` : "";
-        encabezado.textContent = `#${denuncia.id} · ${fechaFormateada}${zona}`;
-
-        const descripcion = document.createElement("div");
-        descripcion.className = "text-muted small";
-        descripcion.textContent = resumirTexto(denuncia.descripcion);
-
-        info.appendChild(encabezado);
-        info.appendChild(descripcion);
-
-        if (mostrarEstado) {
-            const estadoLabel = document.createElement("div");
-            estadoLabel.className = "estado-label text-muted";
-            estadoLabel.textContent = obtenerEtiquetaEstado(denuncia);
-            info.appendChild(estadoLabel);
-        }
-
-        const acciones = document.createElement("div");
-        acciones.className = "acciones";
-
-        const btnVer = document.createElement("button");
-        btnVer.type = "button";
-        btnVer.className = "btn btn-outline-secondary btn-sm";
-        btnVer.textContent = "Ver en mapa";
-        btnVer.addEventListener("click", () => {
-            centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: false });
-        });
-
-        acciones.appendChild(btnVer);
-
-        if (puedeEditarDenuncia(denuncia)) {
-            const btnEditar = document.createElement("button");
-            btnEditar.type = "button";
-            btnEditar.className = "btn btn-background btn-sm";
-            btnEditar.textContent = "Editar";
-            btnEditar.addEventListener("click", () => {
-                centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: true });
+            const btnVer = document.createElement("button");
+            btnVer.type = "button";
+            btnVer.className = "btn btn-outline-secondary btn-sm";
+            btnVer.textContent = "Ver en mapa";
+            btnVer.addEventListener("click", () => {
+                centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: false });
             });
-            acciones.appendChild(btnEditar);
-        }
+            acciones.appendChild(btnVer);
 
-        item.appendChild(info);
-        item.appendChild(acciones);
+            if (puedeEditarDenuncia(denuncia)) {
+                const btnEditar = document.createElement("button");
+                btnEditar.type = "button";
+                btnEditar.className = "btn btn-background btn-sm";
+                btnEditar.textContent = "Editar";
+                btnEditar.addEventListener("click", () => {
+                    centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: true });
+                });
+                acciones.appendChild(btnEditar);
+            }
+
+            item.appendChild(acciones);
+        }
 
         return item;
+    }
+
+    function construirDenunciaHtml(denuncia) {
+        const color = obtenerColorDenuncia(denuncia);
+        const estadoEtiqueta = escapeHtml(obtenerEtiquetaEstado(denuncia));
+        const estadoValor = escapeHtml(denuncia.estado || "-");
+        const fecha = formatearFecha(denuncia.fecha_creacion);
+        const descripcion = escapeHtml(
+            denuncia.descripcion || "Sin descripción registrada"
+        );
+        const zona = escapeHtml(denuncia.zona || "No asignada");
+        const direccion = escapeHtml(
+            denuncia.direccion || "Sin dirección registrada"
+        );
+        const direccionTextual = escapeHtml(
+            denuncia.direccion_textual || "Sin referencia del denunciante"
+        );
+        const coordenadas = formatearCoordenadas(
+            denuncia.latitud,
+            denuncia.longitud
+        );
+        const latitudTexto =
+            denuncia.latitud === 0 || denuncia.latitud
+                ? escapeHtml(denuncia.latitud)
+                : "-";
+        const longitudTexto =
+            denuncia.longitud === 0 || denuncia.longitud
+                ? escapeHtml(denuncia.longitud)
+                : "-";
+        const usuario = denuncia.usuario || {};
+        const denuncianteNombre = usuario.nombre
+            ? escapeHtml(usuario.nombre)
+            : "Sin registro";
+        const denuncianteRol = usuario.rol
+            ? escapeHtml(usuario.rol)
+            : "Sin registro";
+        const denuncianteId =
+            usuario.id === 0 || usuario.id
+                ? `#${escapeHtml(usuario.id)}`
+                : "-";
+        const cuadrilla = escapeHtml(
+            denuncia.cuadrilla_asignada || "No asignada"
+        );
+        const reporte = denuncia.reporte_cuadrilla || null;
+        const reporteId = reporte && (reporte.id === 0 || reporte.id)
+            ? `#${escapeHtml(reporte.id)}`
+            : "-";
+        const reporteComentario = escapeHtml(
+            (reporte && reporte.comentario) || "Sin comentario registrado"
+        );
+        const reporteFecha =
+            reporte && reporte.fecha_reporte
+                ? formatearFecha(reporte.fecha_reporte)
+                : "-";
+        const jefeCuadrilla = reporte && reporte.jefe_cuadrilla
+            ? escapeHtml(
+                  reporte.jefe_cuadrilla.nombre || "Sin nombre registrado"
+              )
+            : "Sin registro";
+        const imagenDenuncia = denuncia.imagen
+            ? `<figure class="mb-0"><img src="${escapeAttribute(
+                  denuncia.imagen
+              )}" alt="Evidencia fotográfica de la denuncia"></figure>`
+            : "";
+        const imagenReporte =
+            reporte && reporte.foto_trabajo
+                ? `<figure class="mb-0"><img src="${escapeAttribute(
+                      reporte.foto_trabajo
+                  )}" alt="Registro fotográfico de la cuadrilla"></figure>`
+                : "";
+        const mediaHtml = imagenDenuncia || imagenReporte
+            ? `<div class="denuncia-card__media">${imagenDenuncia}${imagenReporte}</div>`
+            : `<div class="denuncia-card__media denuncia-card__media--empty"><div class="denuncia-card__no-image text-muted">Sin material fotográfico disponible.</div></div>`;
+
+        return `
+            <header class="denuncia-card__header">
+                <div>
+                    <div class="fw-semibold">
+                        <span class="denuncia-card__badge" style="background-color: ${escapeAttribute(
+                            color
+                        )};"></span>
+                        Caso #${escapeHtml(denuncia.id)}
+                    </div>
+                    <div class="small text-muted">Reportado el ${fecha}</div>
+                </div>
+                <div class="denuncia-card__estado" style="background-color: ${escapeAttribute(
+                    color
+                )};">
+                    ${estadoEtiqueta}
+                </div>
+            </header>
+            <div class="denuncia-card__grid">
+                <div class="denuncia-card__section">
+                    <h6>Descripción y ubicación</h6>
+                    <p class="denuncia-card__text">${descripcion}</p>
+                    <ul class="list-unstyled mb-0 small">
+                        <li><strong>Zona:</strong> ${zona}</li>
+                        <li><strong>Dirección municipal:</strong> ${direccion}</li>
+                        <li><strong>Referencia del denunciante:</strong> ${direccionTextual}</li>
+                        <li><strong>Coordenadas:</strong> ${
+                            coordenadas
+                                ? escapeHtml(coordenadas)
+                                : "Sin coordenadas disponibles"
+                        }</li>
+                        <li><strong>Latitud:</strong> ${latitudTexto}</li>
+                        <li><strong>Longitud:</strong> ${longitudTexto}</li>
+                    </ul>
+                </div>
+                <div class="denuncia-card__section">
+                    <h6>Denunciante</h6>
+                    <p class="denuncia-card__text"><strong>Nombre:</strong> ${denuncianteNombre}</p>
+                    <p class="denuncia-card__text"><strong>Rol:</strong> ${denuncianteRol}</p>
+                    <p class="denuncia-card__text"><strong>ID usuario:</strong> ${denuncianteId}</p>
+                </div>
+                <div class="denuncia-card__section">
+                    <h6>Gestión municipal</h6>
+                    <p class="denuncia-card__text"><strong>Cuadrilla asignada:</strong> ${cuadrilla}</p>
+                    <p class="denuncia-card__text"><strong>Estado (visual):</strong> ${estadoEtiqueta}</p>
+                    <p class="denuncia-card__text"><strong>Estado (API):</strong> ${estadoValor}</p>
+                    <p class="denuncia-card__text"><strong>Color asociado:</strong> ${escapeHtml(
+                        color
+                    )}</p>
+                </div>
+                <div class="denuncia-card__section">
+                    <h6>Reporte de cuadrilla</h6>
+                    <p class="denuncia-card__text"><strong>ID reporte:</strong> ${reporteId}</p>
+                    <p class="denuncia-card__text"><strong>Fecha del reporte:</strong> ${reporteFecha}</p>
+                    <p class="denuncia-card__text"><strong>Jefe de cuadrilla:</strong> ${jefeCuadrilla}</p>
+                    <p class="denuncia-card__text"><strong>Comentario:</strong> ${reporteComentario}</p>
+                </div>
+            </div>
+            ${mediaHtml}
+        `;
     }
 
     function centrarDenunciaEnMapa(denunciaId, { enfocarFormulario = false } = {}) {
@@ -691,8 +746,7 @@
         denuncias,
         contenedor,
         plantillaVacia,
-        contadorElemento,
-        opciones = {}
+        contadorElemento
     ) {
         if (!contenedor) {
             return;
@@ -708,7 +762,7 @@
             }
         } else {
             denuncias.forEach((denuncia) => {
-                contenedor.appendChild(crearResumenItem(denuncia, opciones));
+                contenedor.appendChild(renderDenuncia(denuncia));
             });
         }
 
@@ -730,17 +784,6 @@
         );
     }
 
-    function resumirTexto(texto) {
-        if (!texto) {
-            return "Sin descripción";
-        }
-        const limpio = String(texto).trim();
-        if (limpio.length <= 80) {
-            return limpio;
-        }
-        return `${limpio.slice(0, 77)}…`;
-    }
-
     function formatearFecha(fechaIso) {
         if (!fechaIso) {
             return "-";
@@ -756,6 +799,15 @@
             hour: "2-digit",
             minute: "2-digit",
         });
+    }
+
+    function formatearCoordenadas(latitud, longitud) {
+        const lat = Number(latitud);
+        const lng = Number(longitud);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            return null;
+        }
+        return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     }
 
     function ajustarMapa(bounds) {
