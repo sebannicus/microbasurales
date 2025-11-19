@@ -233,6 +233,35 @@ class DenunciaAdminUpdateView(generics.UpdateAPIView):
         context["request"] = self.request
         return context
 
+    def update(self, request, *args, **kwargs):
+        estado_destino = request.data.get("estado")
+        estado_normalizado = EstadoDenuncia.normalize(estado_destino)
+
+        if estado_normalizado == EstadoDenuncia.RECHAZADA:
+            if not getattr(request.user, "es_fiscalizador", False):
+                return Response(
+                    {
+                        "estado": [
+                            "Solo personal fiscalizador puede rechazar denuncias.",
+                        ]
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            motivo = request.data.get("motivo_rechazo")
+            motivo_texto = str(motivo).strip() if motivo is not None else ""
+            if not motivo_texto:
+                return Response(
+                    {
+                        "motivo_rechazo": [
+                            "Debes indicar el motivo del rechazo.",
+                        ]
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        return super().update(request, *args, **kwargs)
+
 
 def _tabla_notificaciones_disponible():
     """Verifica si la tabla de notificaciones existe en la base de datos."""
