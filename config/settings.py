@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     # Propias
     'usuarios',
     'denuncias',
+    'analitica',
 ]
 
 # ========================================

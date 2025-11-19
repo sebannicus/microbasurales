@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<div class="contenido">
+    <h2 class="mb-3">Exportación mensual de denuncias</h2>
+    <p class="text-muted">Disponible para administradores y funcionarios municipales.</p>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <p class="mb-2">Archivo a generar:</p>
+            <p class="fw-bold">{{ nombre_archivo }}</p>
+            <p class="mb-4">Corresponde a las denuncias creadas durante <strong>{{ mes_actual }}</strong>.</p>
+            <a class="btn btn-background" href="?descargar=1">
+                <i class="bi bi-download me-2"></i>Descargar CSV
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white fw-bold">Campos incluidos</div>
+        <div class="card-body">
+            <ul class="mb-0">
+                <li><strong>id</strong>: identificador de la denuncia.</li>
+                <li><strong>fecha_creacion</strong> y <strong>fecha_resolucion</strong>.</li>
+                <li><strong>estado</strong> y <strong>zona</strong>.</li>
+                <li><strong>tiempo_respuesta_horas</strong>: diferencia entre la denuncia y el reporte de cuadrilla.</li>
+                <li><strong>funcionario_a_cargo</strong>: cuadrilla o responsable asignado.</li>
+                <li><strong>tiene_reporte_cuadrilla</strong>: indicador SI/NO.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock contenido %}

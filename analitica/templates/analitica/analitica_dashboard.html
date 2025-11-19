@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block contenido %}
+<div class="contenido contenido-fluid">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <div>
+            <h2 class="mb-1">Panel analítico del sistema</h2>
+            <p class="text-muted mb-0">Última actualización: {{ ultimo_actualizado|date:'d M Y H:i' }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-background" href="{% url 'analitica:exportar_csv' %}">Exportar CSV mensual</a>
+            <a class="btn btn-outline-secondary" href="{{ api_url }}" target="_blank" rel="noopener">
+                API Power BI
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-3">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-body">
+                    <p class="text-uppercase text-muted mb-1">Total denuncias</p>
+                    <h3 class="fw-bold">{{ total_denuncias }}</h3>
+                    <p class="mb-0 small">Datos consolidados en tiempo real</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-3">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-body">
+                    <p class="text-uppercase text-muted mb-1">Tiempo promedio</p>
+                    <h3 class="fw-bold">{{ tiempo_promedio_resolucion_legible }}</h3>
+                    <p class="mb-0 small">Horas desde la denuncia al reporte de cuadrilla</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-3">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-body">
+                    <p class="text-uppercase text-muted mb-1">Con evidencia</p>
+                    <h3 class="fw-bold">{{ total_con_reporte }}</h3>
+                    <p class="mb-0 small">Reportes con fotografía/comentario</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-3">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-body">
+                    <p class="text-uppercase text-muted mb-1">Zonas monitoreadas</p>
+                    <h3 class="fw-bold">{{ zonas_monitoreadas }}</h3>
+                    <p class="mb-0 small">Sectores con al menos una denuncia</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-6">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-header bg-white fw-bold">Denuncias por estado</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% for estado in denuncias_por_estado %}
+                        <div class="col-12 col-md-6">
+                            <div class="border rounded p-3 h-100" style="border-left: 5px solid {{ estado.color }};">
+                                <p class="text-uppercase text-muted small mb-1">{{ estado.etiqueta }}</p>
+                                <h4 class="fw-bold mb-1">{{ estado.total }}</h4>
+                                <p class="mb-0 text-muted">{{ estado.porcentaje }}% del total</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xl-6">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-header bg-white fw-bold">Resumen operativo</div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Indicador</th>
+                                    <th class="text-end">Valor</th>
+                                    <th>Detalle</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fila in tabla_resumen %}
+                                <tr>
+                                    <td>{{ fila.titulo }}</td>
+                                    <td class="text-end fw-bold">{{ fila.valor }}</td>
+                                    <td class="text-muted">{{ fila.detalle }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white fw-bold">Denuncias por zona</div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th>Zona / Sector</th>
+                            <th>Total denuncias</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in denuncias_por_zona %}
+                        <tr>
+                            <td>{{ item.zona|default:'Sin zona asignada' }}</td>
+                            <td>{{ item.total }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="2" class="text-center text-muted">Aún no existen denuncias registradas.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white fw-bold">Conecta Power BI</div>
+        <div class="card-body">
+            <p class="mb-3">Usa el endpoint seguro del panel para alimentar dashboards personalizados en Power BI.</p>
+            <ol>
+                <li>En Power BI Desktop selecciona <strong>Obtener datos &gt; Web</strong>.</li>
+                <li>Elige la opción <strong>Modo avanzado</strong> e ingresa la URL: <code>{{ api_url }}</code>.</li>
+                <li>Añade un encabezado personalizado <code>Cookie: sessionid=&lt;valor&gt;</code> reutilizando tu sesión administrativa o genera un token dedicado.</li>
+                <li>Carga los datos y aprovecha campos como estado, zona, coordenadas, tiempos de resolución y evidencia cargada por cuadrillas.</li>
+            </ol>
+            <p class="mb-0 text-muted">El dataset no está paginado, por lo que Power BI obtendrá el universo completo de denuncias en cada actualización.</p>
+        </div>
+    </div>
+</div>
+{% endblock contenido %}

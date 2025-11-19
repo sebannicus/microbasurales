@@ -19,6 +19,7 @@ urlpatterns = [
     path('panel/denuncias/activos/', panel_fiscalizador_activos, name='panel_fiscalizador_activos'),
     path('panel/denuncias/finalizados/', panel_fiscalizador_finalizados, name='panel_fiscalizador_finalizados'),
     path('panel/cuadrilla/', panel_cuadrilla, name='panel_cuadrilla'),
+    path('panel/analitica/', include(('analitica.urls', 'analitica'), namespace='analitica')),
 
     path('admin/', admin.site.urls),
 
