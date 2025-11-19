@@ -212,6 +212,20 @@ class Denuncia(models.Model):
         help_text="Equipo responsable de la gestión de la denuncia.",
     )
 
+    jefe_cuadrilla_asignado = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="denuncias_asignadas",
+    )
+
+    historial = models.ManyToManyField(
+        "HistorialEstado",
+        related_name="denuncias",
+        blank=True,
+    )
+
     # Fecha
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
@@ -292,3 +306,28 @@ class ReporteCuadrilla(models.Model):
 
     def __str__(self):
         return f"Reporte cuadrilla #{self.pk} (denuncia #{self.denuncia_id})"
+
+
+class HistorialEstado(models.Model):
+    denuncia = models.ForeignKey(
+        "Denuncia",
+        on_delete=models.CASCADE,
+        related_name="historial_registros",
+    )
+    estado_anterior = models.CharField(max_length=50)
+    estado_nuevo = models.CharField(max_length=50)
+    responsable = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-fecha",)
+
+    def __str__(self):
+        return (
+            f"Historial denuncia #{self.denuncia_id}: {self.estado_anterior} → {self.estado_nuevo}"
+        )
