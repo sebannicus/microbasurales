@@ -1,8 +1,165 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block extra_head %}
+    {{ block.super }}
+    <style>
+        .denuncia-detalle-card {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+            margin-bottom: 2rem;
+        }
+
+        .denuncia-detalle-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 0.75rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .denuncia-detalle-meta {
+            color: #6c757d;
+            font-size: 0.95rem;
+        }
+
+        .denuncia-seccion {
+            margin-bottom: 1.25rem;
+        }
+
+        .denuncia-seccion h5 {
+            margin-bottom: 0.5rem;
+        }
+
+        .imagen-denuncia-mini {
+            width: 100%;
+            max-width: 480px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+        }
+
+        .modal-imagen {
+            display: none;
+            position: fixed;
+            z-index: 1055;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-imagen .cerrar-modal {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: #ffffff;
+            font-size: 36px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .modal-imagen-contenido {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+    </style>
+{% endblock %}
 
 {% block contenido %}
-{% if denuncia.estado == "rechazada" %}
-    <h5>Motivo del rechazo:</h5>
-    <p>{{ denuncia.motivo_rechazo }}</p>
-{% endif %}
+<div class="contenido contenido-fluid">
+    <div class="denuncia-detalle-card">
+        <div class="denuncia-detalle-header">
+            <div>
+                <h3 class="mb-1">Denuncia #{{ denuncia.id }}</h3>
+                <div class="denuncia-detalle-meta">Fecha de creación: {{ denuncia.fecha_creacion }}</div>
+            </div>
+            <div>
+                <span class="badge bg-secondary fs-6">{{ denuncia.get_estado_display|default:denuncia.estado }}</span>
+            </div>
+        </div>
+
+        {% if denuncia.estado == "rechazada" and denuncia.motivo_rechazo %}
+            <div class="alert alert-warning denuncia-seccion mb-4" role="alert">
+                <strong>Motivo del rechazo:</strong> {{ denuncia.motivo_rechazo }}
+            </div>
+        {% endif %}
+
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="denuncia-seccion">
+                    <h5>Descripción</h5>
+                    <p class="mb-0">{{ denuncia.descripcion }}</p>
+                </div>
+
+                <div class="denuncia-seccion">
+                    <h5>Ubicación</h5>
+                    <p class="mb-1"><strong>Dirección:</strong> {{ denuncia.direccion }}</p>
+                    <p class="mb-1"><strong>Zona:</strong> {{ denuncia.zona }}</p>
+                    <p class="mb-0"><strong>Coordenadas:</strong> {{ denuncia.latitud }}, {{ denuncia.longitud }}</p>
+                </div>
+
+                <div class="denuncia-seccion">
+                    <h5>Gestión</h5>
+                    <p class="mb-1"><strong>Cuadrilla asignada:</strong> {{ denuncia.cuadrilla_asignada }}</p>
+                    <p class="mb-0"><strong>Jefe de cuadrilla:</strong> {{ denuncia.jefe_cuadrilla_asignado }}</p>
+                </div>
+
+                <div class="denuncia-seccion mb-0">
+                    <h5>Denunciante</h5>
+                    <p class="mb-1"><strong>Nombre:</strong> {{ denuncia.denunciante }}</p>
+                    <p class="mb-0"><strong>Correo:</strong> {{ denuncia.denunciante.email }}</p>
+                </div>
+            </div>
+
+            <div class="col-lg-5 d-flex flex-column align-items-start">
+                {% if denuncia.imagen %}
+                    <img src="{{ denuncia.imagen.url }}" class="imagen-denuncia-mini" alt="Imagen de la denuncia">
+                {% else %}
+                    <div class="text-muted">Sin imagen disponible.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modalImagen" class="modal-imagen">
+    <span class="cerrar-modal">&times;</span>
+    <img class="modal-imagen-contenido" id="imagenAmpliada" alt="Imagen ampliada">
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+    {{ block.super }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const miniatura = document.querySelector('.imagen-denuncia-mini');
+            const modal = document.getElementById('modalImagen');
+            const imagenAmpliada = document.getElementById('imagenAmpliada');
+            const cerrarModal = document.querySelector('.cerrar-modal');
+
+            if (miniatura && modal && imagenAmpliada) {
+                miniatura.addEventListener('click', function() {
+                    imagenAmpliada.src = this.src;
+                    modal.style.display = 'flex';
+                });
+            }
+
+            if (cerrarModal && modal && imagenAmpliada) {
+                cerrarModal.addEventListener('click', function() {
+                    modal.style.display = 'none';
+                    imagenAmpliada.removeAttribute('src');
+                });
+            }
+        });
+    </script>
 {% endblock %}
