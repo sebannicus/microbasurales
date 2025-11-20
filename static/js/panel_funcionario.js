@@ -314,7 +314,7 @@
         const lista = wrapper.querySelector("[data-lista-jefes]");
         const loading = wrapper.querySelector("[data-jefes-loading]");
         const inputJefe = wrapper.querySelector(
-            'input[name="jefe_cuadrilla_asignado"]'
+            'input[name="jefe_cuadrilla_asignado_id"]'
         );
         const inputCuadrilla = wrapper.querySelector(
             'input[name="cuadrilla_asignada"]'
@@ -339,10 +339,8 @@
         function actualizarSeleccionVisual(jefe) {
             if (seleccionTexto) {
                 const texto = jefe
-                    ? `Seleccionado: ${escapeHtml(jefe.username)} (#${escapeHtml(
-                          jefe.id
-                      )})`
-                    : "Seleccionado: Ninguno";
+                    ? `Seleccionado: ${escapeHtml(jefe.username)}`
+                    : "Seleccionado: No asignado";
                 seleccionTexto.textContent = texto;
             }
             if (inputCuadrilla) {
@@ -690,10 +688,8 @@
 
         const jefeAsignado = denuncia.jefe_cuadrilla_asignado || null;
         const jefeAsignadoTexto = jefeAsignado
-            ? `${escapeHtml(jefeAsignado.username)} (#${escapeHtml(
-                  jefeAsignado.id
-              )})`
-            : "Ninguno";
+            ? `${escapeHtml(jefeAsignado.username)}`
+            : "No asignado";
         const cuadrilla =
             denuncia.cuadrilla_asignada ||
             (jefeAsignado && jefeAsignado.username) ||
@@ -738,7 +734,7 @@
                         <input type="hidden" name="cuadrilla_asignada" value="${escapeAttribute(
                             cuadrilla
                         )}">
-                        <input type="hidden" name="jefe_cuadrilla_asignado" value="${
+                        <input type="hidden" name="jefe_cuadrilla_asignado_id" value="${
                             jefeAsignado ? escapeAttribute(jefeAsignado.id) : ""
                         }">
                         <div class="accordion accordion-flush">
@@ -921,9 +917,7 @@
                 : "-";
         const jefeAsignado = denuncia.jefe_cuadrilla_asignado || null;
         const jefeAsignadoTexto = jefeAsignado
-            ? `${escapeHtml(jefeAsignado.username)} (#${escapeHtml(
-                  jefeAsignado.id
-              )})`
+            ? `${escapeHtml(jefeAsignado.username)}`
             : "No asignado";
         const cuadrilla = escapeHtml(
             denuncia.cuadrilla_asignada ||
@@ -1465,9 +1459,9 @@
             if (cuadrillaAsignada !== null) {
                 payload.cuadrilla_asignada = (cuadrillaAsignada || "").trim();
             }
-            const jefeSeleccionado = formData.get("jefe_cuadrilla_asignado");
+            const jefeSeleccionado = formData.get("jefe_cuadrilla_asignado_id");
             if (jefeSeleccionado) {
-                payload.jefe_cuadrilla_asignado = Number(jefeSeleccionado);
+                payload.jefe_cuadrilla_asignado_id = Number(jefeSeleccionado);
             }
 
             const estadoObjetivo = formData.get("estado");
@@ -1478,7 +1472,7 @@
             if (
                 esFiscalizador &&
                 payload.estado === "en_gestion" &&
-                !payload.jefe_cuadrilla_asignado
+                !payload.jefe_cuadrilla_asignado_id
             ) {
                 feedback.textContent =
                     "Debes seleccionar un jefe de cuadrilla antes de continuar.";

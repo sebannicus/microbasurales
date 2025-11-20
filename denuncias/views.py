@@ -286,6 +286,19 @@ class DenunciaAdminUpdateView(generics.UpdateAPIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        if (
+            estado_normalizado == EstadoDenuncia.EN_GESTION
+            and not request.data.get("jefe_cuadrilla_asignado_id")
+        ):
+            return Response(
+                {
+                    "jefe_cuadrilla_asignado_id": [
+                        "Debes seleccionar un jefe de cuadrilla para continuar.",
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         serializer = self.get_serializer(
             instancia, data=request.data, partial=partial
         )
