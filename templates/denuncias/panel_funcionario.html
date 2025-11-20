@@ -469,10 +469,10 @@
 <div class="contenido contenido-fluid panel-denuncias-contenido">
 
     <!-- ENCABEZADO -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-2">
         <div>
-            <h2 class="mb-1">Panel de denuncias</h2>
-            <p class="text-muted mb-0">Visualiza y gestiona las denuncias sobre microbasurales en el territorio.</p>
+            <h3 class="mb-1">Panel de denuncias</h3>
+            <p class="text-muted small mb-2">Gestiona y revisa las denuncias del territorio.</p>
         </div>
         <div class="text-md-end mt-2 mt-md-0">
             <span class="badge text-bg-secondary">Última actualización <span id="ultima-actualizacion">-</span></span>
@@ -480,13 +480,13 @@
     </div>
 
     <!-- CABECERA DE FILTROS -->
-    <div class="filters-header bg-white shadow-sm border rounded p-3 mb-3">
+    <div class="filters-header bg-white shadow-sm border rounded p-2 mb-2">
 
-        <form id="filtros-form" class="row g-2 align-items-end">
+        <form id="filtros-form" class="d-flex flex-wrap align-items-center gap-2">
 
-            <div class="col-12 col-md-3">
+            <div class="flex-grow-1 flex-md-grow-0" style="min-width: 180px;">
                 <label class="form-label mb-1">Estado</label>
-                <select id="estado" name="estado" class="form-select form-select-sm">
+                <select id="estado" name="estado" class="form-control form-control-sm">
                     <option value="">Todos</option>
                     {% for estado in estados_config %}
                         <option value="{{ estado.value }}">{{ estado.label }}</option>
@@ -495,9 +495,9 @@
             </div>
 
             <!-- >>> CAMPO FALTANTE QUE ROMPÍA EL BUSCADOR <<< -->
-            <div class="col-12 col-md-3">
+            <div class="flex-grow-1 flex-md-grow-0" style="min-width: 180px;">
                 <label class="form-label mb-1">Zona</label>
-                <select id="zona" name="zona" class="form-select form-select-sm">
+                <select id="zona" name="zona" class="form-control form-control-sm">
                     <option value="">Todas</option>
                     {% for z in zonas_disponibles %}
                         <option value="{{ z }}">{{ z }}</option>
@@ -506,18 +506,18 @@
             </div>
             <!-- >>> FIN CAMBIO <<< -->
 
-            <div class="col-6 col-md-2">
+            <div class="flex-grow-1 flex-md-grow-0" style="min-width: 140px;">
                 <label class="form-label mb-1">Desde</label>
                 <input type="date" id="fecha_desde" name="fecha_desde" class="form-control form-control-sm">
             </div>
 
-            <div class="col-6 col-md-2">
+            <div class="flex-grow-1 flex-md-grow-0" style="min-width: 140px;">
                 <label class="form-label mb-1">Hasta</label>
                 <input type="date" id="fecha_hasta" name="fecha_hasta" class="form-control form-control-sm">
             </div>
 
-            <div class="col-12 col-md-2 d-grid">
-                <button type="submit" class="btn btn-background btn-sm mt-3">
+            <div class="d-flex align-items-end">
+                <button type="submit" class="btn btn-danger btn-sm px-3">
                     Aplicar filtros
                 </button>
             </div>
@@ -534,7 +534,7 @@
         <section class="pendientes-card">
             <div class="card shadow-sm border-0">
 
-                <div class="card-header bg-white py-3">
+                <div class="card-header bg-white py-2">
                     <div class="d-flex flex-column flex-xl-row gap-3 align-items-xl-center justify-content-between">
                         <div>
                             <h5 class="mb-1">Gestión de denuncias</h5>
@@ -542,27 +542,27 @@
                         </div>
 
                         <div class="btn-group btn-group-sm estado-tabs" role="group">
-                            <button type="button" class="btn btn-outline-secondary active estado-tab" data-estado="pendiente">
+                            <button type="button" class="btn btn-outline-secondary active estado-tab py-1 px-3" data-estado="pendiente">
                                 Nuevas
                                 <span class="badge bg-secondary ms-1" id="contador-pendientes">0</span>
                             </button>
 
-                            <button type="button" class="btn btn-outline-secondary estado-tab" data-estado="en_gestion">
+                            <button type="button" class="btn btn-outline-secondary estado-tab py-1 px-3" data-estado="en_gestion">
                                 En gestión
                                 <span class="badge bg-secondary ms-1" id="contador-en-gestion">0</span>
                             </button>
 
-                            <button type="button" class="btn btn-outline-secondary estado-tab" data-estado="realizado">
+                            <button type="button" class="btn btn-outline-secondary estado-tab py-1 px-3" data-estado="realizado">
                                 Realizados
                                 <span class="badge bg-secondary ms-1" id="contador-realizados">0</span>
                             </button>
 
-                            <button type="button" class="btn btn-outline-secondary estado-tab" data-estado="finalizado">
+                            <button type="button" class="btn btn-outline-secondary estado-tab py-1 px-3" data-estado="finalizado">
                                 Cerrados
                                 <span class="badge bg-secondary ms-1" id="contador-finalizados">0</span>
                             </button>
 
-                            <button type="button" class="btn btn-outline-secondary estado-tab" data-estado="rechazada">
+                            <button type="button" class="btn btn-outline-secondary estado-tab py-1 px-3" data-estado="rechazada">
                                 Rechazadas
                                 <span class="badge bg-secondary ms-1" id="contador-rechazadas">0</span>
                             </button>
