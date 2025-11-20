@@ -293,7 +293,7 @@ class DenunciaAdminUpdateView(generics.UpdateAPIView):
             return Response(
                 {
                     "jefe_cuadrilla_asignado_id": [
-                        "Debes seleccionar un jefe de cuadrilla para continuar.",
+                        "Debe seleccionar un jefe de cuadrilla antes de asignar.",
                     ]
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -422,6 +422,25 @@ def _construir_panel_context(request, *, solo_activos=False, solo_finalizados=Fa
     if query_params:
         api_url = f"{base_api_url}?{urlencode(query_params)}"
 
+    jefes_cuadrilla = []
+    try:
+        jefes_cuadrilla = [
+            {
+                "id": jefe.id,
+                "username": jefe.username,
+                "full_name": jefe.get_full_name(),
+            }
+            for jefe in (
+                Usuario.objects.filter(rol=Usuario.Roles.JEFE_CUADRILLA)
+                .order_by("username")
+            )
+        ]
+    except (ProgrammingError, OperationalError):
+        logger.warning(
+            "No se pudo cargar la lista de jefes de cuadrilla; ¿ejecutaste las migraciones?",
+            exc_info=True,
+        )
+
     return {
         "access_token": str(refresh.access_token),
         "api_url": api_url,
@@ -436,6 +455,7 @@ def _construir_panel_context(request, *, solo_activos=False, solo_finalizados=Fa
         "estados_por_valor": estados_por_valor,
         "solo_activos": bool(solo_activos and not solo_finalizados),
         "solo_finalizados": bool(solo_finalizados),
+        "jefes_cuadrilla": jefes_cuadrilla,
     }
 
 

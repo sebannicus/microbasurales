@@ -162,7 +162,7 @@ class DenunciaAdminSerializer(DenunciaSerializer):
             raise serializers.ValidationError(
                 {
                     "jefe_cuadrilla_asignado": (
-                        "Debes seleccionar un jefe de cuadrilla para continuar."
+                        "Debe seleccionar un jefe de cuadrilla antes de asignar."
                     )
                 }
             )

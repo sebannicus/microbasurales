@@ -13,6 +13,19 @@
     const jefesCuadrillaUrl = mapaElemento.dataset.jefesUrl || "";
     let jefesCuadrillaCache = [];
     let jefesCuadrillaPromise = null;
+    let jefesCuadrillaDatos = [];
+
+    const jefesScript = document.getElementById("jefes-cuadrilla-data");
+    if (jefesScript) {
+        try {
+            const parsed = JSON.parse(jefesScript.textContent || "[]");
+            if (Array.isArray(parsed)) {
+                jefesCuadrillaDatos = parsed;
+            }
+        } catch (error) {
+            console.warn("No se pudieron cargar los jefes de cuadrilla embebidos", error);
+        }
+    }
 
     const ultimaActualizacion = document.getElementById("ultima-actualizacion");
     const filtrosForm = document.getElementById("filtros-form");
@@ -259,6 +272,23 @@
 
     function escapeAttribute(texto) {
         return escapeHtml(texto);
+    }
+
+    function construirOpcionesJefes(selectedId = "") {
+        const opciones = [
+            '<option value="">Seleccione jefe de cuadrilla</option>',
+        ];
+        jefesCuadrillaDatos.forEach((jefe) => {
+            const id = jefe.id;
+            const nombre = jefe.full_name || jefe.username || id;
+            const seleccionado = String(id) === String(selectedId) ? "selected" : "";
+            opciones.push(
+                `<option value="${escapeAttribute(id)}" ${seleccionado}>${escapeHtml(
+                    nombre
+                )}</option>`
+            );
+        });
+        return opciones.join("");
     }
 
     async function cargarJefesCuadrilla() {
@@ -823,13 +853,101 @@
                 vacio.id = "";
                 listaPendientes.appendChild(vacio);
             }
-        } else {
+            actualizarContador(contadorPendientes, denuncias.length);
+            return;
+        }
+
+        if (!esFiscalizador) {
             denuncias.forEach((denuncia) => {
                 listaPendientes.appendChild(renderDenuncia(denuncia));
             });
+            actualizarContador(contadorPendientes, denuncias.length);
+            return;
         }
 
+        const accordion = document.createElement("div");
+        accordion.className = "accordion";
+        accordion.id = "pendientes-accordion";
+
+        denuncias.forEach((denuncia) => {
+            accordion.appendChild(construirAccordionPendiente(denuncia));
+        });
+
+        listaPendientes.appendChild(accordion);
+        prepararAsignacionPendientes(accordion);
+
         actualizarContador(contadorPendientes, denuncias.length);
+    }
+
+    function prepararAsignacionPendientes(contenedor) {
+        if (!esFiscalizador) {
+            return;
+        }
+
+        contenedor.querySelectorAll(".asignar-btn").forEach((boton) => {
+            if (boton.dataset.listenerAttached === "true") {
+                return;
+            }
+
+            boton.dataset.listenerAttached = "true";
+            boton.addEventListener("click", async () => {
+                const denunciaId = boton.dataset.denunciaId;
+                const item = boton.closest(".accordion-item");
+                const select = item
+                    ? item.querySelector(
+                          ".jefe-cuadrilla-select[data-denuncia-id='" +
+                              denunciaId +
+                              "']"
+                      )
+                    : null;
+                const errorElemento = item
+                    ? item.querySelector(
+                          "[data-error-denuncia='" + denunciaId + "']"
+                      )
+                    : null;
+                const jefeId = select ? select.value : "";
+
+                if (errorElemento) {
+                    errorElemento.textContent = "";
+                    errorElemento.classList.add("d-none");
+                }
+
+                if (!jefeId) {
+                    if (errorElemento) {
+                        errorElemento.textContent =
+                            "Debe seleccionar un jefe de cuadrilla antes de asignar.";
+                        errorElemento.classList.remove("d-none");
+                    }
+                    return;
+                }
+
+                const textoOriginal = boton.textContent;
+                boton.disabled = true;
+                boton.textContent = "Asignando...";
+
+                try {
+                    await enviarActualizacionDenuncia(denunciaId, {
+                        estado: "en_gestion",
+                        jefe_cuadrilla_asignado_id: Number(jefeId),
+                    });
+                    mostrarMensajeGlobal(
+                        "Denuncia asignada y marcada en gestión correctamente.",
+                        "success"
+                    );
+                    cargarDenuncias(filtrosActivos);
+                } catch (error) {
+                    if (errorElemento) {
+                        errorElemento.textContent =
+                            error.message ||
+                            "No se pudo asignar la denuncia en este momento.";
+                        errorElemento.classList.remove("d-none");
+                    }
+                } finally {
+                    boton.disabled = false;
+                    boton.textContent = textoOriginal;
+                }
+            });
+        });
     }
 
     function puedeEditarDenuncia(denuncia) {
@@ -876,6 +994,47 @@
 
             item.appendChild(acciones);
         }
+
+        return item;
+    }
+
+    function construirAccordionPendiente(denuncia) {
+        const headingId = `pendiente-heading-${escapeAttribute(denuncia.id)}`;
+        const collapseId = `pendiente-collapse-${escapeAttribute(denuncia.id)}`;
+        const item = document.createElement("div");
+        item.className = "accordion-item";
+        const descripcion = escapeHtml(
+            denuncia.descripcion || "Sin descripción registrada"
+        );
+        const jefeActual =
+            (denuncia.jefe_cuadrilla_asignado &&
+                denuncia.jefe_cuadrilla_asignado.id) || "";
+
+        item.innerHTML = `
+            <h2 class="accordion-header" id="${headingId}">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false" aria-controls="${collapseId}">
+                    Caso #${escapeHtml(denuncia.id)} - ${descripcion}
+                </button>
+            </h2>
+            <div id="${collapseId}" class="accordion-collapse collapse" aria-labelledby="${headingId}" data-bs-parent="#pendientes-accordion">
+                <div class="accordion-body d-flex flex-column gap-3">
+                    ${construirDenunciaHtml(denuncia)}
+                    <div class="d-flex flex-column flex-lg-row gap-2 align-items-lg-center">
+                        <select class="form-select jefe-cuadrilla-select" data-denuncia-id="${escapeAttribute(
+                            denuncia.id
+                        )}">
+                            ${construirOpcionesJefes(jefeActual)}
+                        </select>
+                        <button class="btn btn-primary asignar-btn" data-denuncia-id="${escapeAttribute(
+                            denuncia.id
+                        )}">Asignar y marcar en gestión</button>
+                        <div class="text-danger small d-none" data-error-denuncia="${escapeAttribute(
+                            denuncia.id
+                        )}"></div>
+                    </div>
+                </div>
+            </div>
+        `;
 
         return item;
     }
