@@ -13,6 +13,28 @@
     const jefesCuadrillaUrl = mapaElemento.dataset.jefesUrl || "";
     let jefesCuadrillaCache = [];
     let jefesCuadrillaPromise = null;
+    let jefesCuadrillaDatos = [];
+
+    const jefesScript = document.getElementById("jefes-cuadrilla-data");
+    if (jefesScript) {
+        try {
+            const parsed = JSON.parse(jefesScript.textContent || "[]");
+            if (Array.isArray(parsed)) {
+                jefesCuadrillaDatos = parsed;
+            }
+        } catch (error) {
+            console.warn("No se pudieron cargar los jefes de cuadrilla embebidos", error);
+        }
+    }
+
+    const modalImagenElemento = document.getElementById("modalImagenDenuncia");
+    const modalImagen =
+        modalImagenElemento && window.bootstrap
+            ? new window.bootstrap.Modal(modalImagenElemento)
+            : null;
+    const modalImagenImg = modalImagenElemento
+        ? modalImagenElemento.querySelector("[data-imagen-ampliada]")
+        : null;
 
     const ultimaActualizacion = document.getElementById("ultima-actualizacion");
     const filtrosForm = document.getElementById("filtros-form");
@@ -259,6 +281,23 @@
 
     function escapeAttribute(texto) {
         return escapeHtml(texto);
+    }
+
+    function construirOpcionesJefes(selectedId = "") {
+        const opciones = [
+            '<option value="">Seleccione jefe de cuadrilla</option>',
+        ];
+        jefesCuadrillaDatos.forEach((jefe) => {
+            const id = jefe.id;
+            const nombre = jefe.full_name || jefe.username || id;
+            const seleccionado = String(id) === String(selectedId) ? "selected" : "";
+            opciones.push(
+                `<option value="${escapeAttribute(id)}" ${seleccionado}>${escapeHtml(
+                    nombre
+                )}</option>`
+            );
+        });
+        return opciones.join("");
     }
 
     async function cargarJefesCuadrilla() {
@@ -682,9 +721,172 @@
         wrapper.className = "popup-denuncia";
         wrapper.dataset.id = denuncia.id;
 
-        const detalle = renderDenuncia(denuncia, { mostrarAcciones: false });
-        detalle.classList.add("mb-3");
-        wrapper.appendChild(detalle);
+        const estadoEtiqueta = escapeHtml(obtenerEtiquetaEstado(denuncia));
+        const color = obtenerColorDenuncia(denuncia);
+        const fecha = formatearFecha(denuncia.fecha_creacion);
+        const denuncianteNombre = escapeHtml(
+            (denuncia.usuario && denuncia.usuario.nombre) || "Sin registro"
+        );
+        const zona = escapeHtml(denuncia.zona || "No asignada");
+        const miniaturaFuente = denuncia.imagen
+            ? denuncia.imagen
+            : denuncia.reporte_cuadrilla && denuncia.reporte_cuadrilla.foto_trabajo
+              ? denuncia.reporte_cuadrilla.foto_trabajo
+              : null;
+        const miniaturaHtml = miniaturaFuente
+            ? `<img src="${escapeAttribute(
+                  miniaturaFuente
+              )}" alt="Vista previa del caso ${escapeAttribute(
+                  denuncia.id
+              )}" class="img-fluid rounded">`
+            : `<div class="denuncia-card__thumb-placeholder">Sin imagen</div>`;
+
+        wrapper.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="fw-semibold">Caso #${escapeHtml(denuncia.id)}</div>
+                <span class="badge" style="background-color: ${escapeAttribute(
+                    color
+                )}; color: #fff;">${estadoEtiqueta}</span>
+            </div>
+            <div class="mb-3 popup-denuncia__thumb">${miniaturaHtml}</div>
+            <ul class="list-unstyled mb-0 small">
+                <li><strong>Estado:</strong> ${estadoEtiqueta}</li>
+                <li><strong>Denunciante:</strong> ${denuncianteNombre}</li>
+                <li><strong>Zona:</strong> ${zona}</li>
+                <li><strong>Fecha:</strong> ${fecha}</li>
+            </ul>
+        `;
+
+        return wrapper.outerHTML;
+    }
+
+    function actualizarTablaPendientes(denuncias) {
+        if (!listaPendientes) {
+            return;
+        }
+
+        listaPendientes.innerHTML = "";
+
+        if (!denuncias.length) {
+            if (sinDenunciasTemplate) {
+                const vacio = sinDenunciasTemplate.cloneNode(true);
+                vacio.id = "";
+                listaPendientes.appendChild(vacio);
+            }
+            actualizarContador(contadorPendientes, denuncias.length);
+            return;
+        }
+
+        if (!esFiscalizador) {
+            denuncias.forEach((denuncia) => {
+                listaPendientes.appendChild(renderDenuncia(denuncia));
+            });
+            actualizarContador(contadorPendientes, denuncias.length);
+            return;
+        }
+
+        const accordion = document.createElement("div");
+        accordion.className = "accordion";
+        accordion.id = "pendientes-accordion";
+
+        denuncias.forEach((denuncia) => {
+            const item = construirAccordionPendiente(denuncia);
+            inicializarFormularioActualizacion(item);
+            accordion.appendChild(item);
+        });
+
+        listaPendientes.appendChild(accordion);
+        prepararAsignacionPendientes(accordion);
+
+        actualizarContador(contadorPendientes, denuncias.length);
+    }
+
+    function prepararAsignacionPendientes(contenedor) {
+        if (!esFiscalizador) {
+            return;
+        }
+
+        contenedor.querySelectorAll(".asignar-btn").forEach((boton) => {
+            if (boton.dataset.listenerAttached === "true") {
+                return;
+            }
+
+            boton.dataset.listenerAttached = "true";
+            boton.addEventListener("click", async () => {
+                const denunciaId = boton.dataset.denunciaId;
+                const item = boton.closest(".accordion-item");
+                const select = item
+                    ? item.querySelector(
+                          ".jefe-cuadrilla-select[data-denuncia-id='" +
+                              denunciaId +
+                              "']"
+                      )
+                    : null;
+                const errorElemento = item
+                    ? item.querySelector(
+                          "[data-error-denuncia='" + denunciaId + "']"
+                      )
+                    : null;
+                const jefeId = select ? select.value : "";
+
+                if (errorElemento) {
+                    errorElemento.textContent = "";
+                    errorElemento.classList.add("d-none");
+                }
+
+                if (!jefeId) {
+                    if (errorElemento) {
+                        errorElemento.textContent =
+                            "Debe seleccionar un jefe de cuadrilla antes de asignar.";
+                        errorElemento.classList.remove("d-none");
+                    }
+                    return;
+                }
+
+                const textoOriginal = boton.textContent;
+                boton.disabled = true;
+                boton.textContent = "Asignando...";
+
+                try {
+                    await enviarActualizacionDenuncia(denunciaId, {
+                        estado: "en_gestion",
+                        jefe_cuadrilla_asignado_id: Number(jefeId),
+                    });
+                    mostrarMensajeGlobal(
+                        "Denuncia asignada y marcada en gestión correctamente.",
+                        "success"
+                    );
+                    cargarDenuncias(filtrosActivos);
+                } catch (error) {
+                    if (errorElemento) {
+                        errorElemento.textContent =
+                            error.message ||
+                            "No se pudo asignar la denuncia en este momento.";
+                        errorElemento.classList.remove("d-none");
+                    }
+                } finally {
+                    boton.disabled = false;
+                    boton.textContent = textoOriginal;
+                }
+            });
+        });
+    }
+
+    function puedeEditarDenuncia(denuncia) {
+        const estadoActual = normalizarEstado(denuncia.estado);
+        if (esAdministrador) {
+            return estadoActual === "realizado";
+        }
+        if (esFiscalizador) {
+            return estadoActual === "pendiente" || estadoActual === "en_gestion";
+        }
+        return false;
+    }
+
+    function construirFormularioGestion(denuncia) {
+        if (!puedeEditarDenuncia(denuncia)) {
+            return "";
+        }
 
         const jefeAsignado = denuncia.jefe_cuadrilla_asignado || null;
         const jefeAsignadoTexto = jefeAsignado
@@ -715,16 +917,14 @@
             ? "Adjunta la información entregada por la cuadrilla municipal."
             : "";
         const reporteAtributos = puedeEditarReporte ? "" : "readonly";
-        const fecha = denuncia.fecha_creacion
-            ? new Date(denuncia.fecha_creacion).toLocaleString("es-CL")
-            : "Fecha no disponible";
         const puedeRechazarDenuncia =
             esFiscalizador &&
             (estadoActual === "pendiente" || estadoActual === "en_gestion");
         const botonRechazoHtml = puedeRechazarDenuncia
-            ? `<button type="button" class="btn btn-outline-danger btn-sm w-100 mt-2 btn-rechazar-denuncia" data-denuncia-id="${escapeAttribute(
-                  denuncia.id
-              )}">Rechazar denuncia</button>`
+            ? `<button type="button" class="btn btn-outline-danger btn-sm w-100 mt-2 btn-rechazar-denuncia" data-denuncia-id="${
+                  escapeAttribute(
+                      denuncia.id
+                  )}">Rechazar denuncia</button>`
             : "";
 
         const selectorCuadrilla = esFiscalizador
@@ -770,9 +970,9 @@
                         <p class="form-control-plaintext mb-0">${jefeAsignadoTexto}</p>
                     </div>`;
 
-        wrapper.insertAdjacentHTML(
-            "beforeend",
-            `
+        return `
+            <section class="denuncia-card__gestion mt-3">
+                <h6 class="mb-2">Gestión del caso</h6>
                 <form class="update-form" data-estado-actual="${estadoActual}">
                     <div class="mb-2">
                         <label class="form-label">Actualizar estado</label>
@@ -802,45 +1002,9 @@
                     <button type="submit" class="btn btn-sm btn-background w-100">Guardar cambios</button>
                 </form>
                 ${botonRechazoHtml}
-                <div class="small text-muted mt-2">Reportado el ${fecha}</div>
                 <div class="feedback mt-2"></div>
-            `
-        );
-
-        return wrapper.outerHTML;
-    }
-
-    function actualizarTablaPendientes(denuncias) {
-        if (!listaPendientes) {
-            return;
-        }
-
-        listaPendientes.innerHTML = "";
-
-        if (!denuncias.length) {
-            if (sinDenunciasTemplate) {
-                const vacio = sinDenunciasTemplate.cloneNode(true);
-                vacio.id = "";
-                listaPendientes.appendChild(vacio);
-            }
-        } else {
-            denuncias.forEach((denuncia) => {
-                listaPendientes.appendChild(renderDenuncia(denuncia));
-            });
-        }
-
-        actualizarContador(contadorPendientes, denuncias.length);
-    }
-
-    function puedeEditarDenuncia(denuncia) {
-        const estadoActual = normalizarEstado(denuncia.estado);
-        if (esAdministrador) {
-            return estadoActual === "realizado";
-        }
-        if (esFiscalizador) {
-            return estadoActual === "pendiente" || estadoActual === "en_gestion";
-        }
-        return false;
+            </section>
+        `;
     }
 
     function renderDenuncia(denuncia, opciones = {}) {
@@ -848,6 +1012,7 @@
         const item = document.createElement("article");
         item.className = "denuncia-card";
         item.dataset.denunciaId = String(denuncia.id);
+        item.dataset.id = String(denuncia.id);
         item.innerHTML = construirDenunciaHtml(denuncia);
 
         if (mostrarAcciones) {
@@ -869,13 +1034,66 @@
                 btnEditar.className = "btn btn-background btn-sm";
                 btnEditar.textContent = "Editar";
                 btnEditar.addEventListener("click", () => {
-                    centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: true });
+                    const detalle = item.querySelector(".denuncia-card__details");
+                    if (detalle) {
+                        detalle.open = true;
+                    }
+                    const primerCampo = item.querySelector(
+                        ".update-form select, .update-form textarea, .update-form input"
+                    );
+                    if (primerCampo) {
+                        primerCampo.focus();
+                    }
                 });
                 acciones.appendChild(btnEditar);
             }
 
             item.appendChild(acciones);
         }
+
+        inicializarFormularioActualizacion(item);
+
+        return item;
+    }
+
+    function construirAccordionPendiente(denuncia) {
+        const headingId = `pendiente-heading-${escapeAttribute(denuncia.id)}`;
+        const collapseId = `pendiente-collapse-${escapeAttribute(denuncia.id)}`;
+        const item = document.createElement("div");
+        item.className = "accordion-item";
+        item.dataset.id = String(denuncia.id);
+        const descripcion = escapeHtml(
+            denuncia.descripcion || "Sin descripción registrada"
+        );
+        const jefeActual =
+            (denuncia.jefe_cuadrilla_asignado &&
+                denuncia.jefe_cuadrilla_asignado.id) || "";
+
+        item.innerHTML = `
+            <h2 class="accordion-header" id="${headingId}">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false" aria-controls="${collapseId}">
+                    Caso #${escapeHtml(denuncia.id)} - ${descripcion}
+                </button>
+            </h2>
+            <div id="${collapseId}" class="accordion-collapse collapse" aria-labelledby="${headingId}" data-bs-parent="#pendientes-accordion">
+                <div class="accordion-body d-flex flex-column gap-3">
+                    ${construirDenunciaHtml(denuncia)}
+                    <div class="d-flex flex-column flex-lg-row gap-2 align-items-lg-center">
+                        <select class="form-select jefe-cuadrilla-select" data-denuncia-id="${escapeAttribute(
+                            denuncia.id
+                        )}">
+                            ${construirOpcionesJefes(jefeActual)}
+                        </select>
+                        <button class="btn btn-primary asignar-btn" data-denuncia-id="${escapeAttribute(
+                            denuncia.id
+                        )}">Asignar y marcar en gestión</button>
+                        <div class="text-danger small d-none" data-error-denuncia="${escapeAttribute(
+                            denuncia.id
+                        )}"></div>
+                    </div>
+                </div>
+            </div>
+        `;
 
         return item;
     }
@@ -896,14 +1114,6 @@
             denuncia.latitud,
             denuncia.longitud
         );
-        const latitudTexto =
-            denuncia.latitud === 0 || denuncia.latitud
-                ? escapeHtml(denuncia.latitud)
-                : "-";
-        const longitudTexto =
-            denuncia.longitud === 0 || denuncia.longitud
-                ? escapeHtml(denuncia.longitud)
-                : "-";
         const usuario = denuncia.usuario || {};
         const denuncianteNombre = usuario.nombre
             ? escapeHtml(usuario.nombre)
@@ -975,9 +1185,18 @@
               ? reporte.foto_trabajo
               : null;
         const miniaturaHtml = miniaturaFuente
-            ? `<img src="${escapeAttribute(
-                  miniaturaFuente
-              )}" alt="Vista previa del caso ${escapeAttribute(denuncia.id)}" loading="lazy">`
+            ? `<div class="denuncia-card__thumb-media">
+                    <img src="${escapeAttribute(
+                        miniaturaFuente
+                    )}" alt="Vista previa del caso ${escapeAttribute(
+                        denuncia.id
+                    )}" loading="lazy">
+                    <button class="btn btn-link btn-sm ver-imagen mt-1" data-img="${escapeAttribute(
+                        miniaturaFuente
+                    )}" data-case="${escapeAttribute(denuncia.id)}">
+                        Ampliar imagen
+                    </button>
+                </div>`
             : `<div class="denuncia-card__thumb-placeholder">Sin imagen</div>`;
         const esRechazada = estadoNormalizado === "rechazada";
         const motivoRechazoBruto = (denuncia.motivo_rechazo || "").trim();
@@ -1011,6 +1230,7 @@
                     </ul>
                 </section>`
             : "";
+        const formularioGestionHtml = construirFormularioGestion(denuncia);
 
         return `
             <header class="denuncia-card__header">
@@ -1060,7 +1280,6 @@
                                 <li><span>Nombre</span><strong>${denuncianteNombre}</strong></li>
                                 <li><span>Rol</span><strong>${denuncianteRol}</strong></li>
                                 <li><span>ID usuario</span><strong>${denuncianteId}</strong></li>
-                                <li><span>Referencia del denunciante</span><strong>${direccionTextual}</strong></li>
                             </ul>
                         </section>
                         <section class="denuncia-card__detail-group">
@@ -1071,8 +1290,6 @@
                                         ? escapeHtml(coordenadas)
                                         : "Sin coordenadas disponibles"
                                 }</strong></li>
-                                <li><span>Latitud</span><strong>${latitudTexto}</strong></li>
-                                <li><span>Longitud</span><strong>${longitudTexto}</strong></li>
                                 <li><span>Referencia textual</span><strong>${direccionTextual}</strong></li>
                             </ul>
                         </section>
@@ -1089,10 +1306,117 @@
                             ${reporteDetalleHtml}
                         </section>
                     </div>
+                    ${rechazoDetalleHtml}
                     ${galeriaHtml}
+                    ${formularioGestionHtml}
                 </div>
             </details>
         `;
+    }
+
+    function inicializarFormularioActualizacion(contenedor) {
+        if (!contenedor) {
+            return;
+        }
+
+        const formulario = contenedor.querySelector(".update-form");
+        const feedback = contenedor.querySelector(".feedback");
+        const wrapperConId =
+            contenedor.dataset.id
+                ? contenedor
+                : contenedor.closest("[data-id], [data-denuncia-id]");
+        const denunciaId = wrapperConId
+            ? wrapperConId.dataset.id || wrapperConId.dataset.denunciaId
+            : null;
+
+        if (!formulario || !denunciaId) {
+            return;
+        }
+
+        if (formulario.dataset.listenerAttached === "true") {
+            return;
+        }
+        formulario.dataset.listenerAttached = "true";
+
+        prepararSelectorJefe(contenedor);
+
+        formulario.addEventListener("submit", async (evt) => {
+            evt.preventDefault();
+            if (feedback) {
+                feedback.textContent = "Guardando cambios...";
+                feedback.className = "feedback mt-2 text-muted";
+            }
+
+            const formData = new FormData(formulario);
+            const payload = {
+                reporte_cuadrilla: (formData.get("reporte_cuadrilla") || "").trim(),
+            };
+            const cuadrillaAsignada = formData.get("cuadrilla_asignada");
+            if (cuadrillaAsignada !== null) {
+                payload.cuadrilla_asignada = (cuadrillaAsignada || "").trim();
+            }
+            const jefeSeleccionado = formData.get("jefe_cuadrilla_asignado_id");
+            if (jefeSeleccionado) {
+                payload.jefe_cuadrilla_asignado_id = Number(jefeSeleccionado);
+            }
+
+            const estadoObjetivo = formData.get("estado");
+            if (estadoObjetivo) {
+                payload.estado = estadoObjetivo;
+            }
+
+            if (
+                esFiscalizador &&
+                payload.estado === "en_gestion" &&
+                !payload.jefe_cuadrilla_asignado_id
+            ) {
+                if (feedback) {
+                    feedback.textContent =
+                        "Debes seleccionar un jefe de cuadrilla antes de continuar.";
+                    feedback.className = "feedback mt-2 text-danger";
+                }
+                return;
+            }
+
+            if (
+                esFiscalizador &&
+                formulario.dataset.estadoActual === "en_gestion" &&
+                payload.estado === "realizado" &&
+                !payload.reporte_cuadrilla
+            ) {
+                if (feedback) {
+                    feedback.textContent =
+                        "Debes adjuntar el reporte de cuadrilla antes de marcar la denuncia como realizada.";
+                    feedback.className = "feedback mt-2 text-danger";
+                }
+                return;
+            }
+
+            try {
+                await enviarActualizacionDenuncia(denunciaId, payload);
+                if (feedback) {
+                    feedback.textContent = "Cambios guardados correctamente";
+                    feedback.className = "feedback mt-2 text-success";
+                }
+                cargarDenuncias(filtrosActivos);
+            } catch (error) {
+                console.error(error);
+                if (feedback) {
+                    feedback.textContent =
+                        error.message || "No se pudieron guardar los cambios";
+                    feedback.className = "feedback mt-2 text-danger";
+                }
+            }
+        });
+
+        const botonRechazo = contenedor.querySelector(
+            ".btn-rechazar-denuncia"
+        );
+        if (botonRechazo && rechazoModal) {
+            botonRechazo.addEventListener("click", () => {
+                abrirModalRechazo(denunciaId);
+            });
+        }
     }
 
     function centrarDenunciaEnMapa(denunciaId, { enfocarFormulario = false } = {}) {
@@ -1431,88 +1755,33 @@
             return;
         }
 
-        const formulario = contenedor.querySelector(".update-form");
-        const feedback = contenedor.querySelector(".feedback");
-        const denunciaId = contenedor.dataset.id;
+        inicializarFormularioActualizacion(contenedor);
+    });
 
-        if (!formulario) {
-            return;
-        }
-
-        if (formulario.dataset.listenerAttached === "true") {
-            return;
-        }
-        formulario.dataset.listenerAttached = "true";
-
-        prepararSelectorJefe(contenedor);
-
-        formulario.addEventListener("submit", async (evt) => {
-            evt.preventDefault();
-            feedback.textContent = "Guardando cambios...";
-            feedback.className = "feedback mt-2 text-muted";
-
-            const formData = new FormData(formulario);
-            const payload = {
-                reporte_cuadrilla: (formData.get("reporte_cuadrilla") || "").trim(),
-            };
-            const cuadrillaAsignada = formData.get("cuadrilla_asignada");
-            if (cuadrillaAsignada !== null) {
-                payload.cuadrilla_asignada = (cuadrillaAsignada || "").trim();
-            }
-            const jefeSeleccionado = formData.get("jefe_cuadrilla_asignado_id");
-            if (jefeSeleccionado) {
-                payload.jefe_cuadrilla_asignado_id = Number(jefeSeleccionado);
-            }
-
-            const estadoObjetivo = formData.get("estado");
-            if (estadoObjetivo) {
-                payload.estado = estadoObjetivo;
-            }
-
-            if (
-                esFiscalizador &&
-                payload.estado === "en_gestion" &&
-                !payload.jefe_cuadrilla_asignado_id
-            ) {
-                feedback.textContent =
-                    "Debes seleccionar un jefe de cuadrilla antes de continuar.";
-                feedback.className = "feedback mt-2 text-danger";
-                return;
-            }
-
-            if (
-                esFiscalizador &&
-                formulario.dataset.estadoActual === "en_gestion" &&
-                payload.estado === "realizado" &&
-                !payload.reporte_cuadrilla
-            ) {
-                feedback.textContent =
-                    "Debes adjuntar el reporte de cuadrilla antes de marcar la denuncia como realizada.";
-                feedback.className = "feedback mt-2 text-danger";
-                return;
-            }
-
-            try {
-                await enviarActualizacionDenuncia(denunciaId, payload);
-                feedback.textContent = "Cambios guardados correctamente";
-                feedback.className = "feedback mt-2 text-success";
-                cargarDenuncias(filtrosActivos);
-            } catch (error) {
-                console.error(error);
-                feedback.textContent =
-                    error.message || "No se pudieron guardar los cambios";
-                feedback.className = "feedback mt-2 text-danger";
-            }
+    if (modalImagenElemento && modalImagenImg && modalImagen) {
+        modalImagenElemento.addEventListener("hidden.bs.modal", () => {
+            modalImagenImg.src = "";
+            modalImagenImg.alt = "Vista ampliada de la denuncia";
         });
+    }
 
-        const botonRechazo = contenedor.querySelector(
-            ".btn-rechazar-denuncia"
-        );
-        if (botonRechazo && rechazoModal) {
-            botonRechazo.addEventListener("click", () => {
-                abrirModalRechazo(denunciaId);
-            });
+    document.addEventListener("click", (event) => {
+        const trigger = event.target.closest(".ver-imagen");
+        if (!trigger || !modalImagen || !modalImagenImg) {
+            return;
         }
+
+        const imagenUrl = trigger.dataset.img;
+        if (!imagenUrl) {
+            return;
+        }
+
+        const caseId = trigger.dataset.case || "";
+        modalImagenImg.src = imagenUrl;
+        modalImagenImg.alt = caseId
+            ? `Imagen ampliada del caso ${caseId}`
+            : "Imagen ampliada de la denuncia";
+        modalImagen.show();
     });
 
     filtrosForm.addEventListener("submit", (event) => {
