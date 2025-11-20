@@ -447,9 +447,7 @@ def _construir_panel_context(request, *, solo_activos=False, solo_finalizados=Fa
         "api_update_url": request.build_absolute_uri(
             reverse("denuncias_admin_update", args=[0])
         ),
-        "jefes_cuadrilla_url": request.build_absolute_uri(
-            reverse("jefes_cuadrilla_list")
-        ),
+        "jefes_cuadrilla_url": None,
         "zonas_disponibles": zonas_disponibles,
         "estados_config": estados_config,
         "estados_por_valor": estados_por_valor,
