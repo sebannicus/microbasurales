@@ -1021,17 +1021,29 @@
 
             const btnVer = document.createElement("button");
             btnVer.type = "button";
-            btnVer.className = "btn btn-outline-secondary btn-sm";
-            btnVer.textContent = "Ver en mapa";
+            btnVer.className = "btn btn-outline-secondary btn-xs";
+            btnVer.textContent = "Mapa";
             btnVer.addEventListener("click", () => {
                 centrarDenunciaEnMapa(denuncia.id, { enfocarFormulario: false });
             });
             acciones.appendChild(btnVer);
 
+            const btnDetalles = document.createElement("button");
+            btnDetalles.type = "button";
+            btnDetalles.className = "btn btn-outline-secondary btn-xs";
+            btnDetalles.textContent = "Detalles";
+            btnDetalles.addEventListener("click", () => {
+                const detalle = item.querySelector(".denuncia-card__details");
+                if (detalle) {
+                    detalle.open = !detalle.open;
+                }
+            });
+            acciones.appendChild(btnDetalles);
+
             if (puedeEditarDenuncia(denuncia)) {
                 const btnEditar = document.createElement("button");
                 btnEditar.type = "button";
-                btnEditar.className = "btn btn-background btn-sm";
+                btnEditar.className = "btn btn-background btn-xs";
                 btnEditar.textContent = "Editar";
                 btnEditar.addEventListener("click", () => {
                     const detalle = item.querySelector(".denuncia-card__details");

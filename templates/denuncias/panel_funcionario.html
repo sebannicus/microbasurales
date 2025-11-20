@@ -25,7 +25,7 @@
 
         @media (min-width: 992px) {
             .panel-layout {
-                grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
+                grid-template-columns: 1fr 1fr;
                 align-items: flex-start;
             }
 
@@ -126,19 +126,19 @@
         .denuncias-list {
             display: flex;
             flex-direction: column;
-            gap: 1rem;
-            padding: 1.25rem;
+            gap: 0.75rem;
+            padding: 0.75rem;
         }
 
         .denuncia-card {
             position: relative;
             border: 1px solid #dde2ea;
             border-radius: 16px;
-            padding: 1.25rem 1.5rem 1.5rem;
+            padding: 0.9rem 1rem 1rem;
             background: #fff;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 0.75rem;
             box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
         }
 
@@ -147,7 +147,7 @@
             flex-wrap: wrap;
             justify-content: space-between;
             gap: 0.5rem 1.25rem;
-            padding-right: 6rem;
+            padding-right: 3.5rem;
         }
 
         .denuncia-card__case {
@@ -155,7 +155,7 @@
             align-items: center;
             gap: 0.35rem;
             font-weight: 600;
-            font-size: 1rem;
+            font-size: 0.95rem;
         }
 
         .denuncia-card__case-id {
@@ -190,7 +190,7 @@
         .denuncia-card__summary {
             display: grid;
             grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-            gap: 1rem;
+            gap: 0.75rem;
             align-items: center;
         }
 
@@ -218,7 +218,7 @@
         .denuncia-card__summary-list {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 0.5rem 1.25rem;
+            gap: 0.4rem 0.75rem;
             margin: 0;
             padding: 0;
             list-style: none;
@@ -271,12 +271,17 @@
 
         .denuncia-card__details {
             border-top: 1px solid #edf2f7;
-            padding-top: 0.75rem;
+            padding-top: 0.35rem;
+            display: none;
+        }
+
+        .denuncia-card__details[open] {
+            display: block;
         }
 
         .denuncia-card__details-toggle {
             list-style: none;
-            display: inline-flex;
+            display: none;
             align-items: center;
             gap: 0.4rem;
             font-weight: 600;
@@ -290,7 +295,7 @@
         }
 
         .denuncia-card__details summary {
-            display: inline-flex;
+            display: none;
             justify-content: flex-end;
             width: 100%;
             margin-bottom: 0.75rem;
@@ -319,12 +324,12 @@
         .denuncia-card__details-content {
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 0.5rem;
         }
 
         .denuncia-card__details-grid {
             display: grid;
-            gap: 1rem;
+            gap: 0.5rem;
         }
 
         @media (min-width: 768px) {
@@ -334,11 +339,11 @@
         }
 
         .denuncia-card__detail-group h6 {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             color: #64748b;
-            margin-bottom: 0.35rem;
+            margin-bottom: 0.2rem;
         }
 
         .denuncia-card__detail-list {
@@ -347,13 +352,13 @@
             list-style: none;
             display: flex;
             flex-direction: column;
-            gap: 0.4rem;
-            font-size: 0.9rem;
+            gap: 0.2rem;
+            font-size: 0.85rem;
         }
 
         .denuncia-card__detail-list span {
             display: block;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             letter-spacing: 0.04em;
             color: #94a3b8;
             text-transform: uppercase;
@@ -366,13 +371,13 @@
         .denuncia-card__gallery {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1rem;
+            gap: 0.5rem;
         }
 
         .denuncia-card__image-large {
             border: 1px solid #e2e8f0;
             border-radius: 12px;
-            padding: 0.5rem;
+            padding: 0.3rem;
             background: #f8fafc;
         }
 
@@ -400,10 +405,20 @@
 
         .denuncia-card__actions {
             position: absolute;
-            top: 1.25rem;
-            right: 1.25rem;
+            top: 0.75rem;
+            right: 0.75rem;
             display: flex;
-            gap: 0.5rem;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .btn-xs {
+            padding: 0.2rem 0.35rem !important;
+            font-size: 0.7rem !important;
+            height: auto !important;
+            line-height: 1.2;
+            white-space: nowrap;
         }
 
         @media (max-width: 575.98px) {
@@ -430,36 +445,51 @@
             box-shadow: none;
             border: 1px solid #d7dde5;
         }
-
         .filters-header {
-            width: 100%;
-            border-radius: 8px;
+            width: auto;
+            margin-left: 0;
+            margin-right: 0;
         }
 
         .filters-header .form-label {
-            font-size: 0.75rem;
+            font-size: 0.55rem;
         }
 
         .filters-header .form-select,
         .filters-header .form-control {
-            padding: 4px 6px;
-            height: 32px;
-            font-size: 0.85rem;
+            padding: 3px 4px;
+            height: 28px;
+            font-size: 0.8rem;
         }
 
         .filters-header button {
-            height: 32px;
-            padding: 4px 6px !important;
-            font-size: 0.85rem !important;
+            height: 28px;
+            padding: 2px 4px !important;
+            font-size: 0.8rem !important;
         }
 
         .reporte-cuadrilla-group textarea {
-            min-height: 96px;
+            min-height: 60px;
             resize: vertical;
         }
 
         .reporte-cuadrilla-group .form-text {
             font-size: 0.75rem;
+        }
+
+        .estado-tabs {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 0.25rem;
+            overflow-x: auto;
+        }
+
+        .estado-tab {
+            padding: 0.25rem 0.4rem !important;
+            font-size: 0.75rem !important;
+            height: auto;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
     </style>
@@ -468,63 +498,65 @@
 {% block contenido %}
 <div class="contenido contenido-fluid panel-denuncias-contenido">
 
-    <!-- ENCABEZADO -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-2">
-        <div>
-            <h3 class="mb-1">Panel de denuncias</h3>
-            <p class="text-muted small mb-2">Gestiona y revisa las denuncias del territorio.</p>
+        <!-- CABECERA DE FILTROS -->
+    <!-- ENCABEZADO + BUSCADOR + ACTUALIZACIÓN -->
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-2 gap-2">
+
+        <!-- TÍTULO -->
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+            <div style="text-align: center;">
+                <h3 class="mb-0" style="font-size: 1.5rem;">Panel de denuncias</h3>
+                <p class="text-muted small mb-0" style="font-size: 0.8rem;">Gestiona y revisa las denuncias del territorio.</p>
+            </div>
         </div>
-        <div class="text-md-end mt-2 mt-md-0">
-            <span class="badge text-bg-secondary">Última actualización <span id="ultima-actualizacion">-</span></span>
+
+        <!-- BUSCADOR / FILTROS -->
+        <div class="filters-header bg-white shadow-sm border rounded p-1">
+
+            <form id="filtros-form" class="d-flex flex-wrap align-items-center gap-2">
+
+                <div class="flex-grow-1 flex-md-grow-0" style="min-width: 180px;">
+                    <label class="form-label mb-1">Estado</label>
+                    <select id="estado" name="estado" class="form-control form-control-sm">
+                        <option value="">Todos</option>
+                        {% for estado in estados_config %}
+                            <option value="{{ estado.value }}">{{ estado.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex-grow-1 flex-md-grow-0" style="min-width: 180px;">
+                    <label class="form-label mb-1">Zona</label>
+                    <select id="zona" name="zona" class="form-control form-control-sm">
+                        <option value="">Todas</option>
+                        {% for z in zonas_disponibles %}
+                            <option value="{{ z }}">{{ z }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex-grow-1 flex-md-grow-0" style="min-width: 140px;">
+                    <label class="form-label mb-1">Desde</label>
+                    <input type="date" id="fecha_desde" name="fecha_desde" class="form-control form-control-sm">
+                </div>
+
+                <div class="flex-grow-1 flex-md-grow-0" style="min-width: 140px;">
+                    <label class="form-label mb-1">Hasta</label>
+                    <input type="date" id="fecha_hasta" name="fecha_hasta" class="form-control form-control-sm">
+                </div>
+
+                <div class="d-flex align-items-end">
+                    <button type="submit" class="btn btn-danger btn-sm px-3">
+                        Aplicar filtros
+                    </button>
+                </div>
+
+            </form>
+
         </div>
+
     </div>
 
-    <!-- CABECERA DE FILTROS -->
-    <div class="filters-header bg-white shadow-sm border rounded p-2 mb-2">
-
-        <form id="filtros-form" class="d-flex flex-wrap align-items-center gap-2">
-
-            <div class="flex-grow-1 flex-md-grow-0" style="min-width: 180px;">
-                <label class="form-label mb-1">Estado</label>
-                <select id="estado" name="estado" class="form-control form-control-sm">
-                    <option value="">Todos</option>
-                    {% for estado in estados_config %}
-                        <option value="{{ estado.value }}">{{ estado.label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <!-- >>> CAMPO FALTANTE QUE ROMPÍA EL BUSCADOR <<< -->
-            <div class="flex-grow-1 flex-md-grow-0" style="min-width: 180px;">
-                <label class="form-label mb-1">Zona</label>
-                <select id="zona" name="zona" class="form-control form-control-sm">
-                    <option value="">Todas</option>
-                    {% for z in zonas_disponibles %}
-                        <option value="{{ z }}">{{ z }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <!-- >>> FIN CAMBIO <<< -->
-
-            <div class="flex-grow-1 flex-md-grow-0" style="min-width: 140px;">
-                <label class="form-label mb-1">Desde</label>
-                <input type="date" id="fecha_desde" name="fecha_desde" class="form-control form-control-sm">
-            </div>
-
-            <div class="flex-grow-1 flex-md-grow-0" style="min-width: 140px;">
-                <label class="form-label mb-1">Hasta</label>
-                <input type="date" id="fecha_hasta" name="fecha_hasta" class="form-control form-control-sm">
-            </div>
-
-            <div class="d-flex align-items-end">
-                <button type="submit" class="btn btn-danger btn-sm px-3">
-                    Aplicar filtros
-                </button>
-            </div>
-
-        </form>
-
-    </div>
 
 
     <!-- PANEL INFERIOR: TABLA + MAPA -->
@@ -535,13 +567,12 @@
             <div class="card shadow-sm border-0">
 
                 <div class="card-header bg-white py-2">
-                    <div class="d-flex flex-column flex-xl-row gap-3 align-items-xl-center justify-content-between">
-                        <div>
-                            <h5 class="mb-1">Gestión de denuncias</h5>
-                            <small class="text-muted">Selecciona el estado que deseas revisar.</small>
+                    <div class="d-flex flex-column flex-xl-row gap-2 align-items-xl-center justify-content-between">
+                        <div style="flex-shrink: 0;">
+                            <small class="text-muted d-block" style="font-size: 0.7rem; white-space: nowrap;">Selecciona el estado.</small>
                         </div>
 
-                        <div class="btn-group btn-group-sm estado-tabs" role="group">
+                        <div class="btn-group btn-group-sm estado-tabs" role="group" style="flex-grow: 1; min-width: 0;">
                             <button type="button" class="btn btn-outline-secondary active estado-tab py-1 px-3" data-estado="pendiente">
                                 Nuevas
                                 <span class="badge bg-secondary ms-1" id="contador-pendientes">0</span>
@@ -651,6 +682,12 @@
         </div>
 
     </div>
+            <!-- ÚLTIMA ACTUALIZACIÓN -->
+        <div class="text-lg-end">
+            <span class="badge text-bg-secondary">
+                Última actualización <span id="ultima-actualizacion">-</span>
+            </span>
+        </div>
 
     <!-- Modal para ampliar imagenes -->
     <div class="modal fade" id="modalImagenDenuncia" tabindex="-1" aria-hidden="true">
