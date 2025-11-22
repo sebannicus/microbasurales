@@ -1,3 +1,9 @@
+"""
+Django settings para desarrollo LOCAL del proyecto Microbasurales.
+Esta versión NO usa AWS, NO usa PythonAnywhere y NO usa RDS.
+Funciona con PostgreSQL LOCAL + STATICFILES + MEDIA en tu PC.
+"""
+
 import os
 from pathlib import Path
 from datetime import timedelta
@@ -8,36 +14,23 @@ from datetime import timedelta
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ========================================
-# SECURITY
+# SECURITY (LOCAL)
 # ========================================
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "insecure-default-key-change-in-env",
-)
-
-DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
-
-# ========================================
-# HOSTS SEGUROS PARA PRODUCCIÓN
-# ========================================
+SECRET_KEY = "dev-secret-key-no-importa-en-local"
+DEBUG = True
 
 ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'localhost',
-    'tubarriolimpio.space',
-    'www.tubarriolimpio.space',
+    "127.0.0.1",
+    "localhost",
 ]
 
-
-CSRF_TRUSTED_ORIGINS = [
-    "http://100.29.99.59",
-    "https://100.29.99.59",
-]
+CSRF_TRUSTED_ORIGINS = []
 
 # ========================================
-# APPLICATIONS
+# APPS
 # ========================================
 INSTALLED_APPS = [
+    # Django base
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -49,7 +42,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
 
-    # Apps propias
+    # Apps del proyecto
     'usuarios',
     'denuncias',
     'analitica',
@@ -61,10 +54,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-
-    # CORS middleware
-    'corsheaders.middleware.CorsMiddleware',
-
+    'corsheaders.middleware.CorsMiddleware',  # OK en local
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -80,7 +70,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [BASE_DIR / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -95,19 +85,18 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # ========================================
-# DATABASE (RDS PostgreSQL)
+# BASE DE DATOS LOCAL (POSTGRESQL LOCAL)
 # ========================================
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "microbasurales",  
-        "USER": "postgres",
-        "PASSWORD": "Admin12345",
-        "HOST": "instancia-microbasurales.cqvgs4di1ynp.us-east-1.rds.amazonaws.com",
+        "NAME": "microbasurales",    # Nombre de tu BD local
+        "USER": "postgres",          # Usuario local
+        "PASSWORD": "30102897",      # Tu contraseña local
+        "HOST": "127.0.0.1",         # SIEMPRE localhost en desarrollo
         "PORT": "5432",
     }
 }
-
 
 # ========================================
 # PASSWORD VALIDATION
@@ -128,31 +117,30 @@ USE_I18N = True
 USE_TZ = True
 
 # ========================================
-# STATIC & MEDIA (LOCAL EN EC2)
+# STATIC & MEDIA (LOCAL)
 # ========================================
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / "static"]
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+STATIC_ROOT = BASE_DIR / "staticfiles"   # No se usa en local, pero no molesta
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / "media"
 
 # ========================================
-# POWER BI
+# POWER BI (NO SE USA EN LOCAL)
 # ========================================
-POWERBI_DASHBOARD_EMBED_URL = os.environ.get(
-    "POWERBI_DASHBOARD_EMBED_URL",
-    ""
-)
+POWERBI_DASHBOARD_EMBED_URL = ""
 
 # ========================================
-# AUTH
+# AUTH & USER MODEL
 # ========================================
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'usuarios.Usuario'
 
 # ========================================
-# REST FRAMEWORK + JWT
+# REST + JWT
 # ========================================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -170,11 +158,11 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
+LOGIN_URL = 'login_django'
+LOGIN_REDIRECT_URL = 'home_ciudadano'
+LOGOUT_REDIRECT_URL = 'login_django'
+
 # ========================================
-# CORS
+# CORS (permite desarrollo sin errores)
 # ========================================
-CORS_ALLOWED_ORIGINS = [
-    f"http://{host}" for host in ALLOWED_HOSTS if host
-] + [
-    f"https://{host}" for host in ALLOWED_HOSTS if host
-]
+CORS_ALLOW_ALL_ORIGINS = True
